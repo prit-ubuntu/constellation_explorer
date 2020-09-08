@@ -1,4 +1,4 @@
-# orbit_visual
+# Orbital Elements Calculation
 
 ## Usage
 This was my way of reviewing some parts of Orbital Mechanics. You can see the latest version of this code at [orbits.mplevy.com](https://orbits.mplevy.com/).
