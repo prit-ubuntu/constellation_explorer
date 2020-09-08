@@ -6,7 +6,9 @@ from collections import defaultdict
 
 # # Michael Levy 9/7/2020
 
-# Set title
+
+# Set config/title
+st.beta_set_page_config(page_title='ORBIT VISUAL', page_icon="🚀", layout='centered', initial_sidebar_state='collapsed')
 st.title('Orbital Elements Calculation')
 st.write('''
 Link to [GitHub Repo](https://github.com/levymp/orbit_visual) where this was developed.\n
