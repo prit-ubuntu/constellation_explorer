@@ -8,10 +8,10 @@ from collections import defaultdict
 
 
 # Set config/title
-st.beta_set_page_config(page_title='ORBIT VISUAL', page_icon="🚀", layout='centered', initial_sidebar_state='collapsed')
-st.title('Orbital Elements Calculation')
+st.beta_set_page_config(page_title='ORBIT PLAYGROUND', page_icon="🚀", layout='centered', initial_sidebar_state='collapsed')
+st.title('Orbit Playground')
 st.write('''
-Link to [GitHub Repo](https://github.com/levymp/orbit_visual) where this was developed.\n
+Link to [GitHub Repo](https://github.com/levymp/orbit_visual) where this is being developed.\n
 
 **Here are the equations I used for these calculations:**\n
 **Radius of Apogee/Perigee:**\n
@@ -98,10 +98,11 @@ def main():
     df = df.transpose()
     df = df.round(2)
     # Append Units
-    units = ['km', 'km', '-', 'km/s^2', 'km', 'km', 'min', 'km/s', 'km/s']
+    units = ['km', 'km', '-', 'km^2/s', 'km', 'km', 'min', 'km/s', 'km/s']
     df['UNITS'] = units
     st.write('**Calculated Values**')
     st.write(df)
+    st.write('**ORBIT VISUAL COMING SOON!**')
 # def get_plt():
 
 
