@@ -4,11 +4,13 @@
 Caclulate orbital elements related to an elliptic orbit. 
 
 ## Installation
-'''git clone https://github.com/levymp/orbit_visual.git'''
-'''pip install -r requirements.txt'''
+```git clone https://github.com/levymp/orbit_visual.git```  
+```pip install -r requirements.txt```  
+```streamlit run orbit_visual.py```  
+
 
 ## Contributing
-This repo is for Michael's own work only. 
+This work is only being completed by Michael. 
 
 ## License
 MIT License
