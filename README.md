@@ -6,7 +6,7 @@ This was my way of reviewing parts of Orbital Mechanics. You can see the latest 
 ## Getting Started
 ```git clone https://github.com/levymp/orbit_visual.git```  
 ```pip install -r requirements.txt```  
-```streamlit run orbit_visual.py```
+```streamlit run app.py```
 
 ## Contributing
 This work is only being completed by Michael for now.
