@@ -10,7 +10,7 @@ from collections import defaultdict
 # Set config/title
 st.beta_set_page_config(page_title='ORBIT PLAYGROUND', page_icon="🚀", layout='centered', initial_sidebar_state='collapsed')
 st.title('Orbit Playground')
-st.write('''
+'''
 Link to [GitHub Repo](https://github.com/levymp/orbit_visual) where this is being developed.\n
 
 **Here are the equations I used for these calculations:**\n
@@ -34,9 +34,9 @@ $$\\boxed{T = \\frac{2\pi}{\\sqrt{\mu}}a^{3/2}}$$\n
 **Velocity at Apogee/Perigee:**\n
 $$\\boxed{v_{a/p} = \\frac{r_{a/p}}{h}}$$
 
-''')
+'''
 # Initial Given Values
-st.write('**Input Values:**')
+'**Input Values:**'
 
 # Get User Input
 apogee = st.number_input('Apogee (km)', value=3500)
@@ -48,29 +48,36 @@ RAAN = st.number_input('Right Ascension of the Ascending Node (deg):', value=180
 # Dictionary of Values -> Pandas DataFrame
 oe = {'apogee': apogee, 'perigee': perigee, 'inclination': inclination, 'argument of perigee': argument_of_perigee, 'Right Ascension of the Ascending Node': RAAN}
 given = pd.DataFrame(oe, index=['VALUE']).transpose()
+
 # Append Units
 units = ['km', 'km', 'deg', 'deg', 'deg']
 given['UNITS'] = units
+
 # Display values
-st.write('**Given Values**')
+'**Given Values**'
 st.write(given)
+
 # Show known constants
-st.write('**Known Constants**')
+'**Known Constants**'
 known = pd.DataFrame({'Radius of Earth': 6378, 'Gravitational Parameter': 398600}, index=['VALUE']).transpose()
+
 # Append Units
 known['UNITS'] = ['km', 'km^3/s^2']
+
 # Display Values
 st.write(known)
 
 # Set local variables
 # Radius of Earth
 R = known['VALUE']['Radius of Earth']  # km
+
 # Gravitational Parameter
 mu = known['VALUE']['Gravitational Parameter']  # km^3/s^2
 
 def main():
     # New dataframe for calculated values assign -> {value, units}
     calc = defaultdict(list)
+
     # Assign radius of apogee and perigee
     calc['r_apogee'] = R + oe['apogee']
     calc['r_perigee'] = R + oe['perigee']
@@ -97,13 +104,15 @@ def main():
     df = pd.DataFrame(calc, index=['VALUE'])
     df = df.transpose()
     df = df.round(2)
+
     # Append Units
     units = ['km', 'km', '-', 'km^2/s', 'km', 'km', 'min', 'km/s', 'km/s']
     df['UNITS'] = units
-    st.write('**Calculated Values**')
+
+    '**Calculated Values**'
     st.write(df)
-    st.write('**ORBIT VISUAL COMING SOON!**')
-# def get_plt():
+
+    '**ORBIT VISUAL COMING SOON!**'
 
 
 if __name__ == "__main__":
