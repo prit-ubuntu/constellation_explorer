@@ -12,6 +12,9 @@ _URL = 'http://celestrak.com/NORAD/elements/'
 
 
 class SatConstellation(object):
+    '''
+    Object that contains all relevant information and methods for constellation!
+    '''
     def __init__(self, constellation, debug=False):
         self.constellation = constellation
         self._debug = debug
