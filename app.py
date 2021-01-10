@@ -1,15 +1,174 @@
-import pandas as pd
-import streamlit as st
-from math import pi, sqrt
+from datetime import (datetime as dt, time, timedelta)
+from pytz import timezone, all_timezones
 from collections import defaultdict
+import plotly.figure_factory as ff
+import constellation_utils as cu
+import matplotlib.pyplot as plt
+from tzwhere import tzwhere
+from math import pi, sqrt
+import streamlit as st
+import pandas as pd
 
 
-# # Michael Levy 9/7/2020
-
+# @Author: Michael Levy and Prit Chovatiya 
 
 # Set config/title
-st.beta_set_page_config(page_title='ORBIT PLAYGROUND', page_icon="🚀", layout='centered', initial_sidebar_state='collapsed')
-st.title('Orbit Playground')
+st.set_page_config(page_title='ORBITS', page_icon="🚀", layout='centered', initial_sidebar_state='expanded')
+st.title('LOCAL CONSTELLATION TRACKER')
+
+about = ''' Welcome to the satellite constellation tracker tool. 
+With thousands of satellites passing over the skies, 
+we wanted to create a tool for you to identify different satellites 
+from various active constellations. Our tool provides you the name, 
+date and time of all satellites in a particular constellation visible 
+from 50 degrees above the horizon. 
+   
+   To get started, enter latitude and longitude of your location, date range & constellation 
+of your choice in the side bar on the left. 
+
+   Happy satellite gazing!!! 🛰 🌌 🚀
+'''
+
+st.sidebar.write('## SELECT PAGE')
+page_res = st.sidebar.selectbox('', ('CONSTELLATION TRACKER', 'ORBIT PLAYGROUND'))
+
+if page_res == 'CONSTELLATION TRACKER':
+        
+    locations = {'SAN FRANCISCO': (37.78, -122.41), 'NEW YORK': (40.71, -74.0), 'MUMBAI': (19.08, 72.88), 'LONDON': (51.5, -0.13)}
+    st.sidebar.write('#### EXAMPLES')
+    example = st.sidebar.selectbox('', options=sorted(locations.keys()), index=0,key='1123sdf')
+    c1, c2 = st.beta_columns(2)
+    with c1:
+        st.write('#### **INPUT LATITUDE**')
+        lat = st.number_input('', min_value= -90., max_value= 90., value=locations[example][0], key='lsdksdfjf')
+    with c2:
+        st.write('#### **INPUT LONGITUDE**')
+        lon = st.number_input('', min_value= -180., max_value=180., value=locations[example][1], key='lskdjf')
+    position = (lat, lon)
+    if lat > 0:
+        dir1 = 'N'
+    else:
+        dir1 = 'S'
+    if lon > 0:
+        dir2 = 'E'
+    else:
+        dir2 = 'W'
+
+    # display location
+    st.map(data=pd.DataFrame({'lat': lat, 'lon': lon}, index=[0]), zoom=6, use_container_width=False)
+
+    # display desired location
+    # st.sidebar.write('### DESIRED LOCATION:')
+
+    # st.sidebar.write(f'### {page_res}')
+
+
+    st.sidebar.write('#### PICK A CONSTELLATION')
+    constellationChoice = st.sidebar.selectbox('', options=[const.upper() for const in cu.CONSTELLATIONS], index=1, key='lskdjf')
+    constellationChoice = constellationChoice.lower()
+    # st.sidebar.write(f'#### **DESIRED LOCATION:**\n {abs(round(lat, 2))} {dir1}, {abs(round(lon, 2))} {dir2}')
+    
+    @st.cache(suppress_st_warning=True)
+    def gettimezone(position):
+        '''Return string of local timezone'''
+        tz = tzwhere.tzwhere()
+        return tz.tzNameAt(position[0], position[1])
+
+    # get timezone string
+    # st.sidebar.write('#### **TIMEZONE**')
+
+    zone = gettimezone(position)
+    
+    if isinstance(zone, str):
+        newZone = st.sidebar.checkbox('DIFFERENT TIMEZONE?', value=False, key='lskdjfln2')
+    else:
+        newZone = st.sidebar.checkbox('SELECT TIMEZONE BELOW!', value=True, key='lskdjfln2')
+
+
+    # give option to select a different timezone
+    if newZone:
+        zone = st.sidebar.selectbox('SELECT DESIRED TIMEZONE', all_timezones, index=586, key='lskdjflksdjf')
+        
+    # st.sidebar.write('### **CURRENT TIMEZONE**')
+    st.sidebar.code('TIMEZONE: ' + zone.replace('/', ', ').replace('_', ' '), 'python')
+  
+    st.sidebar.write('### DATE RANGE')
+    tz = timezone(zone)
+    # get current date in timezone
+    currentDate = dt.now(tz)
+    # currentDate = currentDate.replace(tzinfo=tz)
+    timeFrame = st.sidebar.date_input('', (currentDate, currentDate + timedelta(days=3)), key='alksdjflk')
+
+    # set start and end time
+    # check if the start day is current date 
+    if timeFrame[0].day == currentDate.date().day:
+        # use the current time
+        tstart = currentDate.time().replace(tzinfo=tz)
+    else:
+        # use the start of the day
+        tstart = time(0, 0, 0, 0, tz)
+    # assign end date
+    tend = time(23, 59, 59, 0, tz)
+
+    # make sure the dateRange is a tuple depending on user selection
+    if isinstance(timeFrame, tuple):
+        # user gave a range of dates
+        try:
+            dateRange = (dt.combine(timeFrame[0], tstart), dt.combine(timeFrame[1], tend))
+        except IndexError:
+            dateRange = (dt.combine(timeFrame[0], tstart), dt.combine(timeFrame[0], tend))
+    else:
+        # user gave one date (need to do start -> end)
+        dateRange = (dt.combine(timeFrame, tstart), dt.combine(timeFrame, tend))
+
+    # st.stop()
+    # create constellation
+    # @st.cache(suppress_st_warning=True)
+    def getConstellation(constellationChoice, position, dateRange, zone):
+        constellation = cu.SatConstellation(constellationChoice)
+        # get passes
+        constellation.generatePasses(position, dateRange, zone)
+        # create schedule
+        constellation.generateSchedule()
+        return constellation.getSchedule()
+
+    # get constellation object
+    df = getConstellation(constellationChoice, position, dateRange, zone)
+
+    # display schedule
+    '### SCHEDULE OF SATELLITE PASSES'
+    st.write(df)
+
+
+
+    # '#### DAY + HOUR VALUES (HIST):'
+    # st.write(df2)
+
+    # fig4 = ff.create_distplot(df2, ['PASSES'], bin_size=25)
+    # st.plotly_chart(fig4, use_container_width=True)
+
+
+    
+    # fig, ax = plt.subplots()
+
+    # ax.hist(passes_vector, bins=10)
+    # ax.set_title("Distribution of overhead Passes over your city")
+    # ax.set_xlabel("number of passes overhead")
+    # ax.set_ylabel("number of satellites")
+
+    # st.pyplot(fig)
+
+    # fig2 = ff.create_distplot([passes_vector], ['PASSES'], bin_size=25)
+    # st.plotly_chart(fig2, use_container_width=True)
+
+
+    # STOP APP FROM CONTINUING
+    st.stop()
+
+
+################################################################################################################
+############################ LEGACY APP ########################################################################
+################################################################################################################
 '''
 Link to [GitHub Repo](https://github.com/levymp/orbit_visual) where this is being developed.\n
 
