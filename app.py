@@ -139,28 +139,7 @@ if page_res == 'CONSTELLATION TRACKER':
     '### SCHEDULE OF SATELLITE PASSES'
     st.write(df)
 
-
-
-    # '#### DAY + HOUR VALUES (HIST):'
-    # st.write(df2)
-
-    # fig4 = ff.create_distplot(df2, ['PASSES'], bin_size=25)
-    # st.plotly_chart(fig4, use_container_width=True)
-
-
-    
-    # fig, ax = plt.subplots()
-
-    # ax.hist(passes_vector, bins=10)
-    # ax.set_title("Distribution of overhead Passes over your city")
-    # ax.set_xlabel("number of passes overhead")
-    # ax.set_ylabel("number of satellites")
-
-    # st.pyplot(fig)
-
-    # fig2 = ff.create_distplot([passes_vector], ['PASSES'], bin_size=25)
-    # st.plotly_chart(fig2, use_container_width=True)
-
+    # TODO: Add histogram and other relevant data
 
     # STOP APP FROM CONTINUING
     st.stop()
