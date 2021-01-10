@@ -1,2 +1,5 @@
 .vscode/settings.json
 nohup.out
+# ignore TLE files
+*.txt
+__pycache__/*
