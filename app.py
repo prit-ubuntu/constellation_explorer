@@ -50,10 +50,21 @@ if page_res == 'CONSTELLATION TRACKER':
                 'MEXICO CITY': (19.43, -99.13),
                 'ATHENS': (37.98, 23.73),
                 'PARIS': (48.86, 2.35),
-                'ROME': (41.90, 12.50)
+                'ROME': (41.90, 12.50), 
+                'CORVALLIS': (44.56, -123.26), 
+                'PORTLAND': (45.51, -122.68), 
+                'SANTA CRUZ': (36.97, -122.03), 
+                'WEST LAFAYETTE': (40.43, -86.91), 
+                'ANN ARBOR': (42.28, -83.74), 
+                'RAJKOT': (22.30, 70.80)
                 }
     st.sidebar.write('#### EXAMPLES')
-    example = st.sidebar.selectbox('', options=sorted(locations.keys()), index=12,key='1123sdf')
+    # get list of locs
+    locs = sorted(locations.keys())
+    # indx
+    indx = locs.index('ANN ARBOR')
+    
+    example = st.sidebar.selectbox('', options=locs, index=indx,key='1123sdf')
     c1, c2 = st.beta_columns(2)
     with c1:
         st.write('#### **INPUT LATITUDE**')
@@ -72,7 +83,7 @@ if page_res == 'CONSTELLATION TRACKER':
         dir2 = 'W'
 
     # display location
-    st.map(data=pd.DataFrame({'lat': lat, 'lon': lon}, index=[0]), zoom=6, use_container_width=False)
+    st.map(data=pd.DataFrame({'lat': lat, 'lon': lon}, index=[0]), zoom=5, use_container_width=False)
 
     # display desired location
     # st.sidebar.write('### DESIRED LOCATION:')
