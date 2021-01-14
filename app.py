@@ -62,7 +62,7 @@ if page_res == 'CONSTELLATION TRACKER':
     # get list of locs
     locs = sorted(locations.keys())
     # indx
-    indx = locs.index('ANN ARBOR')
+    indx = locs.index('ANN ARBOR (GO BLUE)')
     
     example = st.sidebar.selectbox('', options=locs, index=indx,key='1123sdf')
     c1, c2 = st.beta_columns(2)
