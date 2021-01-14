@@ -53,7 +53,7 @@ if page_res == 'CONSTELLATION TRACKER':
                 'ROME': (41.90, 12.50)
                 }
     st.sidebar.write('#### EXAMPLES')
-    example = st.sidebar.selectbox('', options=sorted(locations.keys()), index=0,key='1123sdf')
+    example = st.sidebar.selectbox('', options=sorted(locations.keys()), index=12,key='1123sdf')
     c1, c2 = st.beta_columns(2)
     with c1:
         st.write('#### **INPUT LATITUDE**')
