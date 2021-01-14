@@ -51,18 +51,18 @@ if page_res == 'CONSTELLATION TRACKER':
                 'ATHENS': (37.98, 23.73),
                 'PARIS': (48.86, 2.35),
                 'ROME': (41.90, 12.50), 
-                'CORVALLIS (GO BEAVS)': (44.56, -123.26), 
+                'CORVALLIS (GO BEAVS!)': (44.56, -123.26), 
                 'PORTLAND': (45.51, -122.68), 
                 'SANTA CRUZ': (36.97, -122.03), 
-                'WEST LAFAYETTE (GO BOILERS)': (40.43, -86.91), 
-                'ANN ARBOR (GO BLUE)': (42.28, -83.74), 
+                'WEST LAFAYETTE (GO BOILERS!)': (40.43, -86.91), 
+                'ANN ARBOR (GO BLUE!)': (42.28, -83.74), 
                 'RAJKOT': (22.30, 70.80)
                 }
     st.sidebar.write('#### EXAMPLES')
     # get list of locs
     locs = sorted(locations.keys())
     # indx
-    indx = locs.index('ANN ARBOR (GO BLUE)')
+    indx = locs.index('ANN ARBOR (GO BLUE!)')
     
     example = st.sidebar.selectbox('', options=locs, index=indx,key='1123sdf')
     c1, c2 = st.beta_columns(2)
