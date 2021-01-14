@@ -41,7 +41,7 @@ if page_res == 'CONSTELLATION TRACKER':
                 'SHANGHAI': (31.23, 121.47),
                 'CAPE TOWN': (-33.92, 18.42),
                 'RIO DE JIANERIO': (-22.91, -43.1),
-                'SYNDEY': (-33.87, 151.21),
+                'SYDNEY': (-33.87, 151.21),
                 'MOSCOW': (55.76, 37.62),
                 'TOKYO': (35.68, 139.65),
                 'REYKJAVIK': (64.15, 21.94),
@@ -51,11 +51,11 @@ if page_res == 'CONSTELLATION TRACKER':
                 'ATHENS': (37.98, 23.73),
                 'PARIS': (48.86, 2.35),
                 'ROME': (41.90, 12.50), 
-                'CORVALLIS': (44.56, -123.26), 
+                'CORVALLIS (GO BEAVS)': (44.56, -123.26), 
                 'PORTLAND': (45.51, -122.68), 
                 'SANTA CRUZ': (36.97, -122.03), 
-                'WEST LAFAYETTE': (40.43, -86.91), 
-                'ANN ARBOR': (42.28, -83.74), 
+                'WEST LAFAYETTE (GO BOILERS)': (40.43, -86.91), 
+                'ANN ARBOR (GO BLUE)': (42.28, -83.74), 
                 'RAJKOT': (22.30, 70.80)
                 }
     st.sidebar.write('#### EXAMPLES')
