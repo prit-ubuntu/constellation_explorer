@@ -5,7 +5,7 @@ import pytz
 
 # SETUP LIST OF ALL CONSTELLATIONS
 # http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
-_MINELEVATIONS = {'planet': 80, 'spire': 80, 'starlink': 80, 'swarm': 80, 'oneweb': 80, 'galileo': 87, 'beidou': 87} 
+_MINELEVATIONS = {'PLANET': 80, 'SPIRE': 80, 'STARLINK': 80, 'SWARM': 80, 'ONEWEB': 80, 'GALILEO': 87, 'BEIDOU': 87} 
 # Names of all constellations
 CONSTELLATIONS = sorted(list(_MINELEVATIONS.keys()))
 _URL = 'http://celestrak.com/NORAD/elements/'
@@ -40,10 +40,10 @@ class SatConstellation(object):
         '''
 
         # check that desired constellation is valid
-        if self.constellation not in CONSTELLATIONS:
+        if self.constellation.upper() not in CONSTELLATIONS:
             return
 
-        url = f'{_URL}{self.constellation}.txt'
+        url = f'{_URL}{self.constellation.lower()}.txt'
 
         try:
             self.satellites = load.tle_file(url)
