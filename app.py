@@ -34,7 +34,24 @@ page_res = st.sidebar.selectbox('', ('CONSTELLATION TRACKER', 'ORBIT PLAYGROUND'
 
 if page_res == 'CONSTELLATION TRACKER':
         
-    locations = {'SAN FRANCISCO': (37.78, -122.41), 'NEW YORK': (40.71, -74.0), 'MUMBAI': (19.08, 72.88), 'LONDON': (51.5, -0.13)}
+    locations = {'SAN FRANCISCO': (37.78, -122.41),
+                'NEW YORK': (40.71, -74.0),
+                'MUMBAI': (19.08, 72.88),
+                'LONDON': (51.5, -0.13),
+                'SHANGHAI': (31.23, 121.47),
+                'CAPE TOWN': (-33.92, 18.42),
+                'RIO DE JIANERIO': (-22.91, -43.1),
+                'SYNDEY': (-33.87, 151.21),
+                'MOSCOW': (55.76, 37.62),
+                'TOKYO': (35.68, 139.65),
+                'REYKJAVIK': (64.15, 21.94),
+                'CAIRO': (30.04, 31.24),
+                'SANTIAGO': (-33.45, -70.67),
+                'MEXICO CITY': (19.43, -99.13),
+                'ATHENS': (37.98, 23.73),
+                'PARIS': (48.86, 2.35),
+                'ROME': (41.90, 12.50)
+                }
     st.sidebar.write('#### EXAMPLES')
     example = st.sidebar.selectbox('', options=sorted(locations.keys()), index=0,key='1123sdf')
     c1, c2 = st.beta_columns(2)
@@ -64,11 +81,13 @@ if page_res == 'CONSTELLATION TRACKER':
 
 
     st.sidebar.write('#### PICK A CONSTELLATION')
-    constellationChoice = st.sidebar.selectbox('', options=[const.upper() for const in cu.CONSTELLATIONS], index=1, key='lskdjf')
-    constellationChoice = constellationChoice.lower()
+    constellationChoice = st.sidebar.selectbox('', options=cu.CONSTELLATIONS, index=len(cu.CONSTELLATIONS)-1, key='lskdjf')
+    if constellationChoice == 'STARLINK':
+        st.sidebar.warning('STARLINK HAS LOTS OF SATELLITES CONSIDER SHORTENING TIMEFRAME')
+    # constellationChoice = constellationChoice.lower()
     # st.sidebar.write(f'#### **DESIRED LOCATION:**\n {abs(round(lat, 2))} {dir1}, {abs(round(lon, 2))} {dir2}')
     
-    @st.cache(suppress_st_warning=True)
+    # @st.cache(suppress_st_warning=True)
     def gettimezone(position):
         '''Return string of local timezone'''
         tz = tzwhere.tzwhere()
@@ -82,7 +101,9 @@ if page_res == 'CONSTELLATION TRACKER':
     if isinstance(zone, str):
         newZone = st.sidebar.checkbox('DIFFERENT TIMEZONE?', value=False, key='lskdjfln2')
     else:
-        newZone = st.sidebar.checkbox('SELECT TIMEZONE BELOW!', value=True, key='lskdjfln2')
+        '### SELECT TIMEZONE BELOW!'
+        # newZone = st.sidebar.checkbox('SELECT TIMEZONE BELOW!', value=True, key='lskdjfln2')
+        newZone = True
 
 
     # give option to select a different timezone
@@ -123,7 +144,7 @@ if page_res == 'CONSTELLATION TRACKER':
 
     # st.stop()
     # create constellation
-    # @st.cache(suppress_st_warning=True)
+    @st.cache(suppress_st_warning=True)
     def getConstellation(constellationChoice, position, dateRange, zone):
         constellation = cu.SatConstellation(constellationChoice)
         # get passes
