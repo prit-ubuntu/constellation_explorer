@@ -156,16 +156,16 @@ if page_res == 'CONSTELLATION TRACKER':
     # st.stop()
     # create constellation
     @st.cache(suppress_st_warning=True)
-    def getConstellation(constellationChoice, position, dateRange, zone):
+    def getConstellation(constellationChoice, position, dateRange):
         constellation = cu.SatConstellation(constellationChoice)
         # get passes
-        constellation.generatePasses(position, dateRange, zone)
+        constellation.generatePasses(position, dateRange)
         # create schedule
         constellation.generateSchedule()
         return constellation.getSchedule()
 
     # get constellation object
-    df = getConstellation(constellationChoice, position, dateRange, zone)
+    df = getConstellation(constellationChoice, position, dateRange)
 
     # display schedule
     '### SCHEDULE OF SATELLITE PASSES'

@@ -52,13 +52,12 @@ class SatConstellation(object):
         except Exception as e:
             print('COULD NOT FIND CONSTELLATION:', e)
 
-    def generatePasses(self, position, dateRange, timezone):
+    def generatePasses(self, position, dateRange):
         '''!
         @brief  Generate the passes of a specific constellation over a specified location and time range.
 
         @param position    TUPLE of latitude and longitude        
         @param dateRange    TUPLE of start/stop datetime objects (with timezone)
-        @param timezone     STRING of desired timezone
 
         @return passes      generate passes vector
         '''
@@ -70,7 +69,7 @@ class SatConstellation(object):
         self.cityLatLon = wgs84.latlon(position[0], position[1])
 
         self.time = (ts.from_datetime(dateRange[0]), ts.from_datetime(dateRange[1]))
-        self.tz = pytz.timezone(timezone)
+        self.tz = dateRange[0].tzinfo
         self._checkPasses()
 
     def _checkPasses(self):
