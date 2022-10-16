@@ -1,7 +1,7 @@
+import streamlit as st
 from skyfield.api import load, wgs84
 import pandas as pd
 import numpy as np
-import pytz
 
 # SETUP LIST OF ALL CONSTELLATIONS
 # http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
@@ -15,24 +15,15 @@ class SatConstellation(object):
     '''
     Object that contains all relevant information and methods for constellation!
     '''
-    def __init__(self, constellation, debug=False):
+    def __init__(self, constellation, debug=False, cache_debug=False):
         self.constellation = constellation
         self._debug = debug
-        self.initalized = False
+        self._cache_debug = cache_debug
+        self.initialized = False
         # Download Satellite Data
-        self._importSats()
+        self._getTLEs()
 
-    def getSchedule(self):
-        '''
-        @brief  return schedule of passes (if created). Only return simplified schedule.
-
-        @return Schedule'''
-        try:
-            return self.passes[['RISE TIME', 'CULMINATE TIME', 'SET TIME']].copy()
-        except AttributeError:
-            return False
-
-    def _importSats(self):
+    def _getTLEs(self):
         '''
         @brief Take in constellation name and get all relevant information
 
@@ -45,34 +36,45 @@ class SatConstellation(object):
 
         url = f'{_URL}{self.constellation.lower()}.txt'
 
+        if self._cache_debug:
+            print('Queried new data!')
+
         try:
             self.satellites = load.tle_file(url)
-            self.count = len(self.satellites)
-            self.initalized = True
+            self.count = len(self.satellites) # num satellites queried 
+            self.initialized = True
         except Exception as e:
+            self.initialized = False
+            st.error('Failed to get constellation data!')
             print('COULD NOT FIND CONSTELLATION:', e)
+            
 
-    def generatePasses(self, position, dateRange):
+    def generatePasses(self, usrLocObject):
         '''!
         @brief  Generate the passes of a specific constellation over a specified location and time range.
 
         @param position    TUPLE of latitude and longitude        
-        @param dateRange    TUPLE of start/stop datetime objects (with timezone)
+        @param dateRange   TUPLE of start/stop datetime objects (with timezone)
 
         @return passes      generate passes vector
         '''
         # check if initialized
-        if not self.initalized:
+        if not self.initialized:
             return False
+
+        position = usrLocObject.selected_position
+        dateRange = usrLocObject.date_range
 
         ts = load.timescale()
         self.cityLatLon = wgs84.latlon(position[0], position[1])
 
         self.time = (ts.from_datetime(dateRange[0]), ts.from_datetime(dateRange[1]))
         self.tz = dateRange[0].tzinfo
-        self._checkPasses()
+        self._findPasses()
+        self._generateSchedule()
 
-    def _checkPasses(self):
+
+    def _findPasses(self):
         '''
         @brief find all passes for each satellite in the specified constellation over the lat/lon.
 
@@ -106,23 +108,16 @@ class SatConstellation(object):
                             pass
 
                 if self._debug:
+                    print('Satellite Name:', sat.name)
                     for ti, event in zip(times, events):
-                        print('Satellite Name:', sat.name)
                         name = ('rise above min elevation', 'culminate', 'set below min elevation')[event]
                         print(ti.utc_strftime('%Y %b %d %H:%M:%S'), name)
 
         self.schedule_list = list(zip(time_list, name_list))
-        self.num_passes = num_passes
+        self.num_passes = len(name_list) # num passes 
+        self.unique_assets = len(np.unique(np.array(name_list))) # unique satellites
 
-    def generateHistogram(self):
-        # TODO: GENERATE HISTOGRAM FUNCTION
-        # st.write(sat_times[['SAT NAME', 'TIME']])
-        # st.write(sat_times["DATETIME"].dt.day)
-        # values = sat_times.groupby([sat_times["DATETIME"].dt.day, sat_times["DATETIME"].dt.hour]).count()
-        # df2 = values[['SAT NAME']]
-        pass
-
-    def generateSchedule(self):
+    def _generateSchedule(self):
         '''
         @return passes      PANDAS df [Satellite Name, Time of Rise (string), Culminate (string), Set (string)(Datetime object)]
         '''
@@ -147,4 +142,21 @@ class SatConstellation(object):
         self.passes = pd.DataFrame(np.array(arranged_list), columns=['ASSET', 'RISE TIME', 'CULMINATE TIME', 'SET TIME', 'R', 'C', 'S'])
         self.passes.set_index('ASSET', inplace=True)
 
+    def getSchedule(self):
+        '''
+        @brief  return schedule of passes (if created). Only return simplified schedule.
+
+        @return Schedule'''
+        try:
+            return self.passes[['RISE TIME', 'CULMINATE TIME', 'SET TIME']].copy()
+        except AttributeError:
+            return False
+
+    def generateHistogram(self):
+        # TODO: GENERATE HISTOGRAM FUNCTION
+        # st.write(sat_times[['SAT NAME', 'TIME']])
+        # st.write(sat_times["DATETIME"].dt.day)
+        # values = sat_times.groupby([sat_times["DATETIME"].dt.day, sat_times["DATETIME"].dt.hour]).count()
+        # df2 = values[['SAT NAME']]
+        pass
     
