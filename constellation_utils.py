@@ -5,9 +5,18 @@ import numpy as np
 
 # SETUP LIST OF ALL CONSTELLATIONS
 # http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
-_MINELEVATIONS = {'PLANET': 80, 'SPIRE': 80, 'STARLINK': 80, 'SWARM': 80, 'ONEWEB': 80, 'GALILEO': 87, 'BEIDOU': 87} 
+_MINELEVATIONS = {'PLANET': 80, 
+                  'SPIRE': 80, 
+                  'STARLINK': 80, 
+                  'SWARM': 80, 
+                  'ONEWEB': 80, 
+                  'GALILEO': 87, 
+                  'BEIDOU': 87, 
+                  'GNSS': 87,
+                  'NOAA': 80, 
+                  'IRIDIUM': 80} 
 # Names of all constellations
-CONSTELLATIONS = sorted(list(_MINELEVATIONS.keys()))
+CONSTELLATIONS = list(_MINELEVATIONS.keys())
 _URL = 'http://celestrak.com/NORAD/elements/'
 
 
@@ -27,7 +36,8 @@ class SatConstellation(object):
         '''
         @brief Take in constellation name and get all relevant information
 
-        @return writes sat object to
+        @return writes EarthSatellite object to class, 
+        see more at: https://rhodesmill.org/skyfield/api-satellites.html#skyfield.sgp4lib.EarthSatellite 
         '''
 
         # check that desired constellation is valid
@@ -47,7 +57,6 @@ class SatConstellation(object):
             self.initialized = False
             st.error('Failed to get constellation data!')
             print('COULD NOT FIND CONSTELLATION:', e)
-            
 
     def generatePasses(self, usrLocObject):
         '''!
@@ -71,9 +80,9 @@ class SatConstellation(object):
         self.time = (ts.from_datetime(dateRange[0]), ts.from_datetime(dateRange[1]))
         self.tz = dateRange[0].tzinfo
         self._findPasses()
-        self._generateSchedule()
-
-
+        if self.num_passes:
+            self._generateSchedule()
+ 
     def _findPasses(self):
         '''
         @brief find all passes for each satellite in the specified constellation over the lat/lon.
@@ -150,7 +159,7 @@ class SatConstellation(object):
         try:
             return self.passes[['RISE TIME', 'CULMINATE TIME', 'SET TIME']].copy()
         except AttributeError:
-            return False
+            return pd.DataFrame()
 
     def generateHistogram(self):
         # TODO: GENERATE HISTOGRAM FUNCTION

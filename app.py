@@ -4,18 +4,18 @@ from location_utils import UserLocation
 import pandas as pd
 
 # Sidebar panel
-st.set_page_config(page_title='Transits', page_icon="🔭", initial_sidebar_state='expanded')
+st.set_page_config(page_title='Constellation Transit Finder', page_icon="🔭", initial_sidebar_state='expanded')
 
 # App Summary 
-st.title('Constellation Explorer')
+st.title('Constellation Explorer 🛰 🛰 🛰')
 st.write('''
 Explore transits of satellites from the biggest constellations for over any area on Earth. 
-This app uses satellite positional data captured inside TLEs (Two Line Element Sets) from Celestrak that are propagated by Skyfield API which leverages 
+This app uses satellite positional data captured inside TLEs (Two Line Element Sets) from [Celestrak](http://celestrak.org/NORAD/elements/) that are propagated by [Skyfield API](https://rhodesmill.org/skyfield/) which leverages 
 the sgp4 library. Get started by selecting a constellation in the sidebar, happy exploring!
 ''')
 
 # Get user input:
-st.sidebar.title('Begin here')
+st.sidebar.title('Begin here 👇')
 
 #   1. Constellation
 st.sidebar.write('**Select a Constellation**')
@@ -36,10 +36,13 @@ def display_results_summary(constObj, usrObject, df):
     col3.metric("Transits", constObj.num_passes)
     col4.metric("Unique Satellites", constObj.unique_assets)
     col1, col2 = st.columns(2)
-    col1.metric("Transit Start", usrObject.start_datestr)
-    col2.metric("Transit End", usrObject.end_datestr)
-    st.caption('Satellite Transit Schedule (all times are in local timezone)')
-    st.dataframe(df, use_container_width=True)
+    col1.metric("Transits Start", usrObject.start_datestr)
+    col2.metric("Transits End", usrObject.end_datestr)
+    if not df.empty:
+        st.caption('Satellite Transit Schedule (all times are in local timezone).')
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.caption('No transists found in the given timeframe.')
 
 # This will cache satellite data so we do not keep making requests to Celestrak
 @st.experimental_singleton
@@ -55,3 +58,9 @@ if constellation.initialized and usrLoc.initialized:
     display_results_summary(constellation, usrLoc, df)
 else:
     st.error('Will need to fix issues before we can proceed.')
+
+#   3. About Block
+st.subheader('**About**')
+st.write('''
+This tool was co-created by [Prit Chovatiya](https://pritc.space/) and [Michael Levy](https://mplevy.com/) from their shared love of streamlit and passion for satellite constellations. 
+''')

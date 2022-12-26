@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 LOCATIONS = {'SAN FRANCISCO': (37.78, -122.41),
                 'BOULDER': (40.015, -105.27),
                 'RAJKOT': (22.30, 70.80),
-                'NEW YORK': (40.71, -74.0),
+                'NEW YORK': (40.73, -74.0),
                 'MUMBAI': (19.08, 72.88),
                 'LONDON': (51.5, -0.13),
                 'SHANGHAI': (31.23, 121.47),
@@ -88,4 +88,4 @@ class UserLocation(object):
             
         else:
             self.initialized = False
-            st.sidebar.error('Please update the loc / lat / long to ensure timezone is supported.')
+            st.sidebar.error('Unable to find timezone based on provided lat/long. Please update the lat/long to ensure timezone is supported.')
