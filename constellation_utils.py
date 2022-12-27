@@ -10,9 +10,9 @@ _MINELEVATIONS = {'SPIRE': 80,
                   'STARLINK': 80, 
                   'SWARM': 80, 
                   'ONEWEB': 80, 
-                  'GALILEO': 87, 
-                  'BEIDOU': 87, 
-                  'GNSS': 87,
+                  'GALILEO': 80, 
+                  'BEIDOU': 80, 
+                  'GNSS': 80,
                   'NOAA': 80, 
                   'IRIDIUM': 80} 
 # Names of all constellations
