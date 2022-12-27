@@ -5,8 +5,8 @@ import numpy as np
 
 # SETUP LIST OF ALL CONSTELLATIONS
 # http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
-_MINELEVATIONS = {'PLANET': 80, 
-                  'SPIRE': 80, 
+_MINELEVATIONS = {'SPIRE': 80, 
+                  'PLANET': 80, 
                   'STARLINK': 80, 
                   'SWARM': 80, 
                   'ONEWEB': 80, 
