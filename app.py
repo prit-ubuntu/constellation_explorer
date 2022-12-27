@@ -62,5 +62,5 @@ else:
 #   3. About Block
 st.subheader('**About**')
 st.write('''
-This tool was co-created by [Prit Chovatiya](https://pritc.space/) and [Michael Levy](https://mplevy.com/) from their shared love of streamlit and passion for satellite constellations. 
+This tool was co-created by [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/) and [Michael Levy](https://www.linkedin.com/in/levymp/) from their shared love of streamlit and passion for satellite constellations. 
 ''')
