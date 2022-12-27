@@ -1,6 +1,6 @@
 import streamlit as st
 import constellation_utils as const_utils
-from location_utils import UserLocation
+import location_utils as loc_utils
 import pandas as pd
 
 # Sidebar panel
@@ -23,24 +23,27 @@ constellationChoice = st.sidebar.selectbox('_placeholder_', const_utils.CONSTELL
 
 #   2. Location 
 st.sidebar.write('**Select a Location**')
-usrLoc = UserLocation()
+usrLoc = loc_utils.UserLocation()
 locationChoice = st.sidebar.selectbox('_placeholder_', usrLoc.locations_list, label_visibility='collapsed')
 usrLoc.initialize_location_services(locationChoice)
 
 # Generate passes
 def display_results_summary(constObj, usrObject, df):
     st.subheader('Satellite Transit Summary')
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Constellation", constObj.constellation)
-    col2.metric("Total Satellites Queried", constObj.count)
-    col3.metric("Transits", constObj.num_passes)
-    col4.metric("Unique Satellites", constObj.unique_assets)
-    col1, col2 = st.columns(2)
-    col1.metric("Transits Start", usrObject.start_datestr)
-    col2.metric("Transits End", usrObject.end_datestr)
+    # metric row 1
+    col1, col2, col3, col4 = st.columns([1,1,1.5,2.5])
+    col1.metric("Transits", constObj.num_passes)
+    col2.metric("Satellites", constObj.unique_assets)
+    col3.metric("Constellation", constObj.constellation)
+    col4.metric(f"{const_utils._MINELEVATIONS[constObj.constellation]}° Above Horizon Over", usrLoc.selected_loc)
+    # metric row 2
+    col1, col2, col3 = st.columns([4,0.5,2])
+    col1.metric("Transits Start + Delta", f'{usrObject.start_datestr} + {loc_utils.DATERANGE_DELTA_DAYS*24}hrs')
+    col3.metric("Total Satellites Queried", constObj.count)
+    # main table
     if not df.empty:
-        st.caption('Satellite transit schedule for transits over 80 deg of elevation above the horizon (all times are in local timezone of the selected location).')
         st.dataframe(df, use_container_width=True)
+        st.caption(f"Satellite transit schedule for transits over {const_utils._MINELEVATIONS[constObj.constellation]}° of elevation above the horizon (all times are in local timezone of the selected location).")
     else:
         st.caption('No transists found in the given timeframe.')
 
