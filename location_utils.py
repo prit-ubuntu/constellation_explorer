@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from tzwhere import tzwhere
-from pytz import timezone, all_timezones
+from pytz import timezone
+from timezonefinder import TimezoneFinder
 import numpy as np
 from datetime import (datetime as dt, time, timedelta)
 
@@ -72,9 +72,9 @@ class UserLocation(object):
         st.sidebar.map(data=pd.DataFrame({'lat': lat, 'lon': lon}, index=[0]), zoom=5, use_container_width=True)
 
     def _update_timezone(self):
-        
-        tz = tzwhere.tzwhere()
-        tzName = tz.tzNameAt(self.selected_position[0],self.selected_position[1])
+
+        tf = TimezoneFinder()
+        tzName = tf.timezone_at(lat=self.selected_position[0],lng=self.selected_position[1])
         self.selected_tz = tzName
 
         if tzName is not None:
