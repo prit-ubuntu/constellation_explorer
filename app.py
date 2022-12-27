@@ -39,7 +39,7 @@ def display_results_summary(constObj, usrObject, df):
     col1.metric("Transits Start", usrObject.start_datestr)
     col2.metric("Transits End", usrObject.end_datestr)
     if not df.empty:
-        st.caption('Satellite Transit Schedule (all times are in local timezone).')
+        st.caption('Satellite Transit Schedule (all times are in local timezone of the selected location).')
         st.dataframe(df, use_container_width=True)
     else:
         st.caption('No transists found in the given timeframe.')

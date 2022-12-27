@@ -143,9 +143,9 @@ class SatConstellation(object):
         # three as strings and three as date time objects
         for index in arrange_index:
             arranged_list.append([sl[index][1], \
-                                sl[index][0][0].utc_datetime().astimezone(self.tz).strftime('%Y %b %d %H:%M:%S'), \
-                                sl[index][0][1].utc_datetime().astimezone(self.tz).strftime('%Y %b %d %H:%M:%S'), \
-                                sl[index][0][2].utc_datetime().astimezone(self.tz).strftime('%Y %b %d %H:%M:%S'),
+                                sl[index][0][0].utc_datetime().astimezone(self.tz).strftime('%b %d, %Y %H:%M:%S'), \
+                                sl[index][0][1].utc_datetime().astimezone(self.tz).strftime('%b %d, %Y %H:%M:%S'), \
+                                sl[index][0][2].utc_datetime().astimezone(self.tz).strftime('%b %d, %Y %H:%M:%S'),
                                 sl[index][0][0].utc_datetime(), sl[index][0][1].utc_datetime(), sl[index][0][2].utc_datetime()])
 
         self.passes = pd.DataFrame(np.array(arranged_list), columns=['ASSET', 'RISE TIME', 'CULMINATE TIME', 'SET TIME', 'R', 'C', 'S'])
