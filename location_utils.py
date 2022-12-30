@@ -35,8 +35,6 @@ LOCATIONS = {'BOULDER': (40.015, -105.27),
              'CUSTOM LOCATION': (10.00, 10.00)
             }
 
-DATERANGE_DELTA_DAYS = 1
-
 class UserLocation(object):
     '''
     Object that contains all relevant information and methods for lat / long and cities!
@@ -47,8 +45,9 @@ class UserLocation(object):
         self.initialized = False
         self.selected_loc = None # string
         self.selected_position = None # TUPLE of latitude and longitude  
-        self.selected_tz = None # string
+        self.selected_tz = 'UTC' # string
         self.date_range = None # TUPLE of start/stop datetime objects (with timezone)
+        self.timerangeset = False
 
     def initialize_location_services(self, choice):
         self.initialized = True
@@ -59,33 +58,29 @@ class UserLocation(object):
             state = True
         self._update_lat_long_map(state)
 
+    def initialize_time_services(self, dateChoice):
+        if dateChoice[1] > dateChoice[0]:
+            self.date_range = dateChoice
+            self.start_datestr = dateChoice[0]
+            self.end_datestr = dateChoice[1]
+            self.timerangeset = True
+        return None
+
     def _update_lat_long_map(self, disp_state):
-        c1, c2 = st.columns(2)
-        with c1:
-            lat = st.sidebar.number_input('Latitude', min_value= -90.0, max_value= 90.0, value=self.locations_dict[self.selected_loc][0], disabled=disp_state)
-        with c2:
-            lon = st.sidebar.number_input('Longitude', min_value= -180.0, max_value=180.0, value=self.locations_dict[self.selected_loc][1], disabled=disp_state)
+        c1, c2 = st.sidebar.columns(2)
+        # with c1:
+        lat = st.sidebar.number_input('Latitude', min_value= -90.0, max_value= 90.0, value=self.locations_dict[self.selected_loc][0], disabled=disp_state)
+        # with c2:
+        lon = st.sidebar.number_input('Longitude', min_value= -180.0, max_value=180.0, value=self.locations_dict[self.selected_loc][1], disabled=disp_state)
         
         self.selected_position = (lat, lon)
         self._update_timezone()
 
-        st.sidebar.map(data=pd.DataFrame({'lat': lat, 'lon': lon}, index=[0]), zoom=5, use_container_width=True)
-
     def _update_timezone(self):
-
         tf = TimezoneFinder()
         tzName = tf.timezone_at(lat=self.selected_position[0],lng=self.selected_position[1])
-        self.selected_tz = tzName
-
         if tzName is not None:
-            st.sidebar.write('Timezone: ',tzName)
-            # get current datetime in timezone
-            currentDate = dt.now(timezone(self.selected_tz))    
-            endDate = currentDate+timedelta(days=DATERANGE_DELTA_DAYS)
-            self.date_range = (currentDate, endDate)
-            self.start_datestr = currentDate.strftime("%Y-%m-%d %H:%M:%S")
-            self.end_datestr = endDate.strftime("%Y-%m-%d %H:%M:%S")
-            
+            self.selected_tz = tzName
         else:
             self.initialized = False
             st.sidebar.error('Unable to find timezone based on provided lat/long. Please update the lat/long to ensure timezone is supported.')
