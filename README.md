@@ -1,4 +1,4 @@
-# Orbital Elements Calculation
+# Constellation Explorer
 ## Usage
 ###### Explore transits of satellites from the biggest constellations for over any area on Earth in an interactive app.
 
