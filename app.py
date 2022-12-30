@@ -2,44 +2,23 @@ import streamlit as st
 import constellation_utils as const_utils
 import location_utils as loc_utils
 import pandas as pd
+from datetime import (datetime as dt, timedelta)
+from pytz import timezone
 
-# Sidebar panel
+# Meta Info
 st.set_page_config(page_title='Constellation Transit Finder', page_icon="🔭", initial_sidebar_state='expanded')
-
-# App Summary 
 st.title('Constellation Explorer 🛰 🛰 🛰')
-st.write('''
-Explore transits of satellites from the biggest constellations for over any area on Earth. 
-This app uses satellite positional data captured inside TLEs (Two Line Element Sets) from [Celestrak](http://celestrak.org/NORAD/elements/) that are propagated by [Skyfield API](https://rhodesmill.org/skyfield/) which leverages 
-the sgp4 library. Get started by selecting a constellation in the sidebar, happy exploring!
-''')
+st.write('Explore transits of satellites from the biggest constellations for over any area on Earth.')
+st.subheader('Satellite Transit Summary')
 
-# Get user input:
-st.sidebar.title('Begin here 👇')
-
-#   1. Constellation
-st.sidebar.write('**Select a Constellation**')
-constellationChoice = st.sidebar.selectbox('_placeholder_', const_utils.CONSTELLATIONS, label_visibility='collapsed')
-
-#   2. Location 
-st.sidebar.write('**Select a Location**')
-usrLoc = loc_utils.UserLocation()
-locationChoice = st.sidebar.selectbox('_placeholder_', usrLoc.locations_list, label_visibility='collapsed')
-usrLoc.initialize_location_services(locationChoice)
-
-# Generate passes
+# After main page title
 def display_results_summary(constObj, usrObject, df):
-    st.subheader('Satellite Transit Summary')
     # metric row 1
     col1, col2, col3, col4 = st.columns([1,1,1.5,2.5])
     col1.metric("Transits", constObj.num_passes)
     col2.metric("Satellites", constObj.unique_assets)
     col3.metric("Constellation", constObj.constellation)
     col4.metric(f"{const_utils._MINELEVATIONS[constObj.constellation]}° Above Horizon Over", usrLoc.selected_loc)
-    # metric row 2
-    col1, col2, col3 = st.columns([4,0.5,2])
-    col1.metric("Transits Start + Delta", f'{usrObject.start_datestr} + {loc_utils.DATERANGE_DELTA_DAYS*24}hrs')
-    col3.metric("Total Satellites Queried", constObj.count)
     # main table
     if not df.empty:
         st.dataframe(df, use_container_width=True)
@@ -47,23 +26,63 @@ def display_results_summary(constObj, usrObject, df):
     else:
         st.caption('No transists found in the given timeframe.')
 
-# This will cache satellite data so we do not keep making requests to Celestrak
-@st.experimental_singleton
+def get_results(constObj):
+    # After satellite data is retrieved, compute transits
+    if constObj.initialized and usrLoc.initialized:
+        constObj.generatePasses(usrLoc)
+        df = constObj.getSchedule()
+        display_results_summary(constObj, usrLoc, df)
+    else:
+        st.error('Will need to fix issues before we can proceed.')
+
+# UI Elements
+# ------------------------- Sidebar panel
+# Get user input:
+st.sidebar.title('Begin here 👇')
+
+# 1. Get Constellation
+constellationChoice = st.sidebar.selectbox('Select a Constellation', const_utils.CONSTELLATIONS)
+@st.experimental_singleton # this will cache satellite data so we do not keep making requests to Celestrak
 def getCachedConstellation(constellationName):
     constellation = const_utils.SatConstellation(constellationName)
     return constellation
 constellation = getCachedConstellation(constellationChoice)
+if constellation.initialized:
+    st.sidebar.success(f"Queried {constellation.count} {constellation.constellation} satellites.", icon="✅")
 
-# After satellite data is retrieved, compute transits
-if constellation.initialized and usrLoc.initialized:
-    constellation.generatePasses(usrLoc)
-    df = constellation.getSchedule()
-    display_results_summary(constellation, usrLoc, df)
+# 2. Get Location 
+usrLoc = loc_utils.UserLocation()
+locationChoice = st.sidebar.selectbox('Select a Location', usrLoc.locations_list)
+usrLoc.initialize_location_services(locationChoice)
+if usrLoc.initialized:
+    st.sidebar.success(f"Timezone Identified: {usrLoc.selected_tz}.", icon="✅")
+
+# 3. Get Date Range
+currentDate = dt.now(timezone(usrLoc.selected_tz))
+dateOptStart = dt(currentDate.year, currentDate.month, currentDate.day, currentDate.hour, 0, 0, 0, timezone(usrLoc.selected_tz))
+dateChoice = st.slider(
+    f"Select time range (_timezone: {usrLoc.selected_tz})_:",
+    min_value = dateOptStart,
+    max_value = dateOptStart + timedelta(days=3),
+    value=(dateOptStart, dateOptStart + timedelta(days=1, hours=12)),
+    step = (timedelta(hours=6)),
+    format = "MM/DD/YY - HH:mm")
+usrLoc.initialize_time_services(dateChoice)
+if usrLoc.timerangeset:
+    with st.spinner("Computing transit schedule..."):
+        get_results(constellation) # display on main page
 else:
-    st.error('Will need to fix issues before we can proceed.')
+    st.error('Please select a different time range!')
 
-#   3. About Block
-st.subheader('**About**')
-st.write('''
+# 4. Display Map
+st.sidebar.map(data=pd.DataFrame({'lat': usrLoc.selected_position[0], 'lon': usrLoc.selected_position[1]}, index=[0]), zoom=5, use_container_width=True)
+
+# 5. About Section
+st.sidebar.header('**About**')
+st.sidebar.write('''
+This app uses satellite positional data captured inside TLEs (Two Line Element Sets) from [Celestrak](http://celestrak.org/NORAD/elements/) that are propagated by [Skyfield API](https://rhodesmill.org/skyfield/) which leverages 
+the sgp4 library. Get started by selecting a constellation in the sidebar, happy exploring!
+''')
+st.sidebar.write('''
 This tool was co-created by [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/) and [Michael Levy](https://www.linkedin.com/in/levymp/) from their shared love of streamlit and passion for satellite constellations. 
 ''')
