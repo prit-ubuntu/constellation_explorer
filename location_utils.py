@@ -52,11 +52,6 @@ class UserLocation(object):
     def initialize_location_services(self, choice):
         self.initialized = True
         self.selected_loc = choice #string
-        
-        state = False
-        if self.selected_loc != "CUSTOM LOCATION":
-            state = True
-        self._update_lat_long_map(state)
 
     def initialize_time_services(self, dateChoice):
         if dateChoice[1] > dateChoice[0]:
@@ -65,16 +60,6 @@ class UserLocation(object):
             self.end_datestr = dateChoice[1]
             self.timerangeset = True
         return None
-
-    def _update_lat_long_map(self, disp_state):
-        c1, c2 = st.sidebar.columns(2)
-        # with c1:
-        lat = st.sidebar.number_input('Latitude', min_value= -90.0, max_value= 90.0, value=self.locations_dict[self.selected_loc][0], disabled=disp_state)
-        # with c2:
-        lon = st.sidebar.number_input('Longitude', min_value= -180.0, max_value=180.0, value=self.locations_dict[self.selected_loc][1], disabled=disp_state)
-        
-        self.selected_position = (lat, lon)
-        self._update_timezone()
 
     def _update_timezone(self):
         tf = TimezoneFinder()
