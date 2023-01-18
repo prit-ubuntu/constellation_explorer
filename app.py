@@ -12,28 +12,36 @@ st.write('Explore transits of satellites from the biggest constellations for ove
 st.subheader('Satellite Transit Summary')
 
 # After main page title
-def display_results_summary(constObj, usrObject, df):
+def display_results_summary(constObj, df):
     # metric row 1
     col1, col2, col3, col4 = st.columns([1,1,1.5,2.5])
     col1.metric("Transits", constObj.num_passes)
-    col2.metric("Satellites", constObj.unique_assets)
+    col2.metric("Satellites", constObj.unique_passes)
     col3.metric("Constellation", constObj.constellation)
     col4.metric(f"{const_utils._MINELEVATIONS[constObj.constellation]}° Above Horizon Over", usrLoc.selected_loc)
     # main table
     if not df.empty:
+        # update dataframe
+        df.set_index('ASSET', inplace=True)
+        df.sort_values(by='RISE', ascending = True, inplace = True)
         st.dataframe(df, use_container_width=True)
         st.caption(f"Satellite transit schedule for transits over {const_utils._MINELEVATIONS[constObj.constellation]}° of elevation above the horizon (all times are in local timezone of the selected location).")
+        # constObj.generateHistogram()
     else:
         st.caption('No transists found in the given timeframe.')
 
 def get_results(constObj):
-    # After satellite data is retrieved, compute transits
+    # After constellation data is retrieved, compute transits
     if constObj.initialized and usrLoc.initialized:
         constObj.generatePasses(usrLoc)
         df = constObj.getSchedule()
-        display_results_summary(constObj, usrLoc, df)
+        display_results_summary(constObj, df)
     else:
         st.error('Will need to fix issues before we can proceed.')
+
+def update_events(const_to_change):
+    # Used a callback to drop events for stale loc, timerange
+    const_to_change.dropEvents()
 
 # UI Elements
 # ------------------------- Sidebar panel
@@ -42,18 +50,28 @@ st.sidebar.title('Begin here 👇')
 
 # 1. Get Constellation
 constellationChoice = st.sidebar.selectbox('Select a Constellation', const_utils.CONSTELLATIONS)
-@st.experimental_singleton # this will cache satellite data so we do not keep making requests to Celestrak
+@st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
+# @st.cache
 def getCachedConstellation(constellationName):
     constellation = const_utils.SatConstellation(constellationName)
     return constellation
 constellation = getCachedConstellation(constellationChoice)
 if constellation.initialized:
-    st.sidebar.success(f"Queried {constellation.count} {constellation.constellation} satellites.", icon="✅")
+    st.sidebar.success(f"Queried {len(constellation.satellites)} {constellation.constellation} satellites.", icon="✅")
 
 # 2. Get Location 
 usrLoc = loc_utils.UserLocation()
-locationChoice = st.sidebar.selectbox('Select a Location', usrLoc.locations_list)
+locationChoice = st.sidebar.selectbox('Select a Location', usrLoc.locations_list, on_change=update_events, args=(constellation,))
 usrLoc.initialize_location_services(locationChoice)
+lat_long_input_disabled = True
+if locationChoice == "CUSTOM LOCATION":
+    lat_long_input_disabled = False
+st.sidebar.columns(2)
+lat = st.sidebar.number_input('Latitude', min_value= -90.0, max_value= 90.0, value=usrLoc.locations_dict[usrLoc.selected_loc][0], disabled=lat_long_input_disabled, on_change=update_events, args=(constellation,))
+lon = st.sidebar.number_input('Longitude', min_value= -180.0, max_value=180.0, value=usrLoc.locations_dict[usrLoc.selected_loc][1], disabled=lat_long_input_disabled, on_change=update_events, args=(constellation,))
+usrLoc.selected_position = (lat, lon)
+usrLoc._update_timezone()
+
 if usrLoc.initialized:
     st.sidebar.success(f"Timezone Identified: {usrLoc.selected_tz}.", icon="✅")
 
@@ -66,7 +84,7 @@ dateChoice = st.slider(
     max_value = dateOptStart + timedelta(days=3),
     value=(dateOptStart, dateOptStart + timedelta(days=1, hours=12)),
     step = (timedelta(hours=6)),
-    format = "MM/DD/YY - HH:mm")
+    format = "MM/DD/YY - HH:mm", on_change=update_events, args=(constellation,))
 usrLoc.initialize_time_services(dateChoice)
 if usrLoc.timerangeset:
     with st.spinner("Computing transit schedule..."):
