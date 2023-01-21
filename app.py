@@ -26,7 +26,7 @@ def display_results_summary(constObj, df):
         df.sort_values(by='RISE', ascending = True, inplace = True)
         st.dataframe(df, use_container_width=True)
         st.caption(f"Satellite transit schedule for transits over {const_utils._MINELEVATIONS[constObj.constellation]}° of elevation above the horizon (all times are in local timezone of the selected location).")
-        # constObj.generateHistogram()
+        constObj.generateGroundTracks()
     else:
         st.caption('No transists found in the given timeframe.')
 
@@ -50,7 +50,7 @@ st.sidebar.title('Begin here 👇')
 
 # 1. Get Constellation
 constellationChoice = st.sidebar.selectbox('Select a Constellation', const_utils.CONSTELLATIONS)
-@st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
+# @st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
 # @st.cache
 def getCachedConstellation(constellationName):
     constellation = const_utils.SatConstellation(constellationName)

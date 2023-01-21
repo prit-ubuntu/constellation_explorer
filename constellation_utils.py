@@ -2,19 +2,31 @@ import streamlit as st
 from skyfield.api import load, wgs84, EarthSatellite
 import pandas as pd
 import numpy as np
+import pydeck as pdk
 
 # SETUP LIST OF ALL CONSTELLATIONS
 # http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
 _MINELEVATIONS = {'SPIRE': 80, 
                   'PLANET': 80, 
                   'STARLINK': 80, 
-                  'SWARM': 80, 
-                  'ONEWEB': 80, 
-                  'GALILEO': 80, 
-                  'BEIDOU': 80, 
-                  'GNSS': 80,
-                  'NOAA': 80, 
+                  'SWARM': 80,
+                  'ONEWEB': 85, 
+                  'GALILEO': 87, 
+                  'BEIDOU': 87, 
+                  'GNSS': 87,
+                  'NOAA': 87, 
                   'IRIDIUM': 80} 
+
+_MAXALTITUDES = {'SPIRE': 600, 
+                  'PLANET': 630, 
+                  'STARLINK': 550, 
+                  'SWARM': 530, 
+                  'ONEWEB': 1200, 
+                  'GALILEO': 33000, 
+                  'BEIDOU': 21150, 
+                  'GNSS': 20000,
+                  'NOAA': 35790, 
+                  'IRIDIUM': 780} 
 
 # Names of all constellations
 CONSTELLATIONS = list(_MINELEVATIONS.keys())
@@ -23,15 +35,47 @@ _URL = 'http://celestrak.com/NORAD/elements/'
 DEBUG = False
 VERBOSE = False
 
+NUM_TRACK = 50
+
 class TransitEvent():
     '''
     Object that contains info about a transit event
     '''
-    def __init__(self, rise_time, culminate_time, set_time, sat_name):
-        self.rise = rise_time
-        self.culminate = culminate_time
-        self.set = set_time
+    def __init__(self, rise_time, culminate_time, set_time, sat_name, satrecObj):
+        self.rise = rise_time # ts objects
+        self.culminate = culminate_time # ts objects
+        self.set = set_time # ts objects
         self.asset = sat_name
+        self.geo_position = None # array of geocentric [x,y,z] (km) from rise to set 
+        self.latlon = None # array of [lat,lon] (deg)
+
+        if isinstance(satrecObj, EarthSatellite):
+            self.satrec = satrecObj
+        else:
+            self.satrec = None
+            print('did not add esatrec object!')
+
+    def get_ephem(self):
+        
+        res = False
+
+        ts = load.timescale()
+        ts_range = ts.linspace(self.rise, self.set, NUM_TRACK)
+
+        geo_pos = np.zeros([NUM_TRACK, 3])
+        lat_lon = np.zeros([NUM_TRACK, 2])
+
+        for id, time in enumerate(ts_range):
+            geocentric = self.satrec.at(time)
+            lat, lon = wgs84.latlon_of(geocentric)
+            geo_pos[id] = np.array([geocentric.position.km[0], geocentric.position.km[1], geocentric.position.km[2]])
+            lat_lon[id] = np.array([lat.degrees, lon.degrees])
+        
+        self.geo_position = geo_pos
+        self.latlon = lat_lon
+        res = True
+
+        return res
 
     def to_dict(self, tz):
         # utility for converting object into reportable data in given tz
@@ -58,7 +102,7 @@ class SatelliteMember(EarthSatellite):
         # only add event if entire event is complete
         if len(rise_events) == len(culmination_events) == len(setting_events):
             for i in range(len(rise_events)):
-                event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name)
+                event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name, self.satrec_object)
                 self.events.append(event)
         return None
 
@@ -70,7 +114,13 @@ class SatelliteMember(EarthSatellite):
     def drop_events(self):
         # used for callback when location / time range changes, we do not want to remember events
         self.events = []
-    
+
+    def create_ephemeris(self):
+        res = False
+        for event in self.events: 
+            res = event.get_ephem()
+        return res
+
     def __str__(self):
         str_title = f"{self.satrec_object.name} | Epoch: {self.satrec_object.epoch.utc_iso()} | Events: {len(self.events)}"
         for event in self.events:
@@ -176,22 +226,56 @@ class SatConstellation(object):
             sat.drop_events()
         return None
 
-    def generateHistogram(self):
-        # TODO: GENERATE HISTOGRAM FUNCTION
-        # values = sat_times.groupby([sat_times["DATETIME"].dt.day, sat_times["DATETIME"].dt.hour]).count()
-        # df2 = values[['SAT NAME']]
-        # test = self.schedule.copy()
-        # st.dataframe(test, use_container_width=True)
-        # test_group = test.groupby('CULMINATE TIME', as_index=False)
-        # fig = px.histogram(test, x="CULMINATE", y="SET", color="ASSET", marginal="rug", hover_data=test.columns)
-        # df = px.data.tips()
-        # st.dataframe(df, use_container_width=True)
-        # fig = px.histogram(df, x="total_bill", y="tip", color="sex", marginal="rug",
-        #                 hover_data=df.columns)
-        # st.plotly_chart(fig, theme="streamlit")
+    def generateGroundTracks(self):
+        lat_list, lon_list, asset_list = [], [], []
+        for sat in self.satellites:
+            if sat.create_ephemeris():
+                for event in sat.events:
+                    for node in event.latlon:
+                        lat_list.append(node[0])
+                        lon_list.append(node[1])
+                        asset_list.append(event.asset)
+
+        chart_data = pd.DataFrame({"lat": lat_list, "lon": lon_list, "asset": asset_list})
+
+        # Simple implementation
+        # st.map(chart_data)
+        viewState = pdk.ViewState(latitude=self.cityLatLon.latitude.degrees, 
+                                  longitude=self.cityLatLon.longitude.degrees,
+                                  zoom=7, pitch=0)
+        layer = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
+                           get_color=[150, 249, 123], get_radius=600, pickable=True, auto_highlight=True)
+        
+        r = pdk.Deck( map_style=None, initial_view_state=viewState, layers=[layer] )
+        st.pydeck_chart(r)
+
         return None
 
-
+# Complex pydeck plot implementation
+# Assign a color based on attraction_type
+# color_lookup = pdk.data_utils.assign_random_colors(chart_data['asset'])
+# Data now has an RGB color by asset type
+# chart_data['color'] = chart_data.apply(lambda row: color_lookup.get(row['asset']), axis=1)
+# layer = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
+#                   get_color='color', get_radius=600, pickable=True, auto_highlight=True)
+# Label datapoints with asset names
+# text_layer = pdk.Layer(
+#     type='TextLayer',
+#     id='text-layer',
+#     data=chart_data,
+#     pickable=True,
+#     get_position='[lon, lat]',
+#     get_text='tooltip',
+#     get_color='color',
+#     # billboard=False,
+#     get_size=12,
+#     # get_angle=0,
+#     # # Note that string constants in pydeck are explicitly passed as strings
+#     # # This distinguishes them from columns in a data set
+#     # get_text_anchor='"middle"',
+#     # get_alignment_baseline='"center"'
+# )
+# my_tooltip = {"text": f"{chart_data['tooltip']}"}
 
 # class SATREC_OBJECT():
 #     'name': 'FLOCK 3R-1', 
