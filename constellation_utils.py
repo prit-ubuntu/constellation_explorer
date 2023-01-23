@@ -3,6 +3,8 @@ from skyfield.api import load, wgs84, EarthSatellite
 import pandas as pd
 import numpy as np
 import pydeck as pdk
+import plotly.figure_factory as ff
+import plotly.express as px
 
 # SETUP LIST OF ALL CONSTELLATIONS
 # http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
@@ -18,15 +20,46 @@ _MINELEVATIONS = {'SPIRE': 80,
                   'IRIDIUM': 80} 
 
 _MAXALTITUDES = {'SPIRE': 600, 
-                  'PLANET': 630, 
-                  'STARLINK': 550, 
-                  'SWARM': 530, 
-                  'ONEWEB': 1200, 
-                  'GALILEO': 33000, 
-                  'BEIDOU': 21150, 
-                  'GNSS': 20000,
-                  'NOAA': 35790, 
-                  'IRIDIUM': 780} 
+                 'PLANET': 630, 
+                 'STARLINK': 550, 
+                 'SWARM': 530, 
+                 'ONEWEB': 1200, 
+                 'GALILEO': 33000, 
+                 'BEIDOU': 21150, 
+                 'GNSS': 20000,
+                 'NOAA': 35790, 
+                 'IRIDIUM': 780} 
+
+MAXZOOM = 5.5
+MIDZOOM = 6.5
+MINZOOM = 7
+
+MINRAD = 600
+MIDRAD = 700
+MAXRAD = 1200
+CITYRAD = 1600
+
+_RADIUSLEVELS = {'SPIRE': MINRAD, 
+                 'PLANET': MINRAD, 
+                 'STARLINK': MINRAD, 
+                 'SWARM': MINRAD, 
+                 'ONEWEB': MIDRAD, 
+                 'GALILEO': MAXRAD, 
+                 'BEIDOU': MAXRAD, 
+                 'GNSS': MAXRAD,
+                 'NOAA': MINRAD, 
+                 'IRIDIUM': MIDRAD} 
+
+_ZOOMLEVELS = {'SPIRE': MINZOOM, 
+               'PLANET': MINZOOM, 
+               'STARLINK': MINZOOM, 
+               'SWARM': MINZOOM, 
+               'ONEWEB': MIDZOOM, 
+               'GALILEO': MAXZOOM, 
+               'BEIDOU': MAXZOOM, 
+               'GNSS': MAXZOOM,
+               'NOAA': MINZOOM, 
+               'IRIDIUM': MIDZOOM} 
 
 # Names of all constellations
 CONSTELLATIONS = list(_MINELEVATIONS.keys())
@@ -36,6 +69,7 @@ DEBUG = False
 VERBOSE = False
 
 NUM_TRACK = 50
+KM_BIN_SIZE = 100
 
 class TransitEvent():
     '''
@@ -226,6 +260,20 @@ class SatConstellation(object):
             sat.drop_events()
         return None
 
+
+    def showStats(self):
+
+        tab1, tab2 = st.tabs(["Ground Tracks", "SMA Distribution"])
+        with tab1:
+            gTrack = self.generateGroundTracks()
+            st.pydeck_chart(gTrack)
+        with tab2:
+            smaHist = self.showSMADist()
+            st.plotly_chart(smaHist, theme="streamlit")
+
+        return None
+
+
     def generateGroundTracks(self):
         lat_list, lon_list, asset_list = [], [], []
         for sat in self.satellites:
@@ -242,14 +290,47 @@ class SatConstellation(object):
         # st.map(chart_data)
         viewState = pdk.ViewState(latitude=self.cityLatLon.latitude.degrees, 
                                   longitude=self.cityLatLon.longitude.degrees,
-                                  zoom=7, pitch=0)
-        layer = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
-                           get_color=[150, 249, 123], get_radius=600, pickable=True, auto_highlight=True)
-        
-        r = pdk.Deck( map_style=None, initial_view_state=viewState, layers=[layer] )
-        st.pydeck_chart(r)
+                                  zoom=_ZOOMLEVELS[self.constellation], pitch=0)
 
-        return None
+        layer_1 = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
+                           get_color=[150, 249, 123], get_radius=_RADIUSLEVELS[self.constellation], pickable=True, auto_highlight=True)
+
+        r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1])
+        return r
+
+    def showSMADist(self):
+
+        a_mean_list = []
+        name_list = []
+        launch_year = []
+        for sat in self.satellites:
+            try:
+                alt = (sat.satrec_object.model.am - 1) * sat.satrec_object.model.radiusearthkm
+                # will need to include this sanity check for adding satellite objects
+                if sat.satrec_object.model.error == 0 and alt > 0 and alt < 2*_MAXALTITUDES[self.constellation]:
+                    a_mean_list.append(alt)
+                    name_list.append(sat.satrec_object.name)
+                    launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
+                else:
+                    if DEBUG: print(f'model with error code #{sat.satrec_object.model.error}, dropping value...')
+            except:
+                print(type(alt))
+                print(sat.satrec_object.model.error)
+                print(f'Could not get mean SMA for {sat.satrec_object.name}')
+
+        df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'Asset': name_list, 'Launch Year': launch_year})
+        num_bins = int((max(a_mean_list) - min(a_mean_list)) / KM_BIN_SIZE)
+        # "Mean Semi-major Axis (km)"
+        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
+
+
+        if DEBUG:
+            print(f"Plotting {len(a_mean_list)} SMAs out of {len(self.satellites)}!")
+            print(f"Using {num_bins} bins.")
+
+        return fig
+
+
 
 # Complex pydeck plot implementation
 # Assign a color based on attraction_type

@@ -26,7 +26,7 @@ def display_results_summary(constObj, df):
         df.sort_values(by='RISE', ascending = True, inplace = True)
         st.dataframe(df, use_container_width=True)
         st.caption(f"Satellite transit schedule for transits over {const_utils._MINELEVATIONS[constObj.constellation]}° of elevation above the horizon (all times are in local timezone of the selected location).")
-        constObj.generateGroundTracks()
+        constObj.showStats()
     else:
         st.caption('No transists found in the given timeframe.')
 
