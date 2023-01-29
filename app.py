@@ -31,7 +31,7 @@ st.sidebar.title('Begin here 👇')
 
 # 1. Get Constellation
 constellationChoice = st.sidebar.selectbox('Select a Constellation', const_utils.CONSTELLATIONS)
-@st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
+# @st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
 def getCachedConstellation(constellationName):
     constellation = const_utils.SatConstellation(constellationName)
     return constellation
