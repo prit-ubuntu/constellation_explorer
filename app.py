@@ -12,30 +12,11 @@ st.write('Explore transits of satellites from the biggest constellations for ove
 st.subheader('Satellite Transit Summary')
 
 # After main page title
-def display_results_summary(constObj, df):
-    # metric row 1
-    col1, col2, col3, col4 = st.columns([1,1,1.5,2.5])
-    col1.metric("Transits", constObj.num_passes)
-    col2.metric("Satellites", constObj.unique_passes)
-    col3.metric("Constellation", constObj.constellation)
-    col4.metric(f"{const_utils._MINELEVATIONS[constObj.constellation]}° Above Horizon Over", usrLoc.selected_loc)
-    # main table
-    if not df.empty:
-        # update dataframe
-        df.set_index('ASSET', inplace=True)
-        df.sort_values(by='RISE', ascending = True, inplace = True)
-        st.dataframe(df, use_container_width=True)
-        st.caption(f"Satellite transit schedule for transits over {const_utils._MINELEVATIONS[constObj.constellation]}° of elevation above the horizon (all times are in local timezone of the selected location).")
-        constObj.showStats()
-    else:
-        st.caption('No transists found in the given timeframe.')
-
 def get_results(constObj):
     # After constellation data is retrieved, compute transits
     if constObj.initialized and usrLoc.initialized:
         constObj.generatePasses(usrLoc)
-        df = constObj.getSchedule()
-        display_results_summary(constObj, df)
+        constObj.showStats(usrLoc)
     else:
         st.error('Will need to fix issues before we can proceed.')
 
@@ -50,8 +31,7 @@ st.sidebar.title('Begin here 👇')
 
 # 1. Get Constellation
 constellationChoice = st.sidebar.selectbox('Select a Constellation', const_utils.CONSTELLATIONS)
-# @st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
-# @st.cache
+@st.experimental_singleton(ttl=1200) # this will cache satellite data so we do not keep making requests to Celestrak
 def getCachedConstellation(constellationName):
     constellation = const_utils.SatConstellation(constellationName)
     return constellation
