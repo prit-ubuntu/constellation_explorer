@@ -2,36 +2,86 @@ import streamlit as st
 from skyfield.api import load, wgs84, EarthSatellite
 import pandas as pd
 import numpy as np
+import constellation_configs as cc
+import pydeck as pdk
+import plotly.express as px
 
-# SETUP LIST OF ALL CONSTELLATIONS
-# http://systemarchitect.mit.edu/docs/delportillo18b.pdf 
-_MINELEVATIONS = {'SPIRE': 80, 
-                  'PLANET': 80, 
-                  'STARLINK': 80, 
-                  'SWARM': 80, 
-                  'ONEWEB': 80, 
-                  'GALILEO': 80, 
-                  'BEIDOU': 80, 
-                  'GNSS': 80,
-                  'NOAA': 80, 
-                  'IRIDIUM': 80} 
-
-# Names of all constellations
-CONSTELLATIONS = list(_MINELEVATIONS.keys())
+# Names of all constellations in config file
+CONSTELLATIONS = list(cc.CONFIGS.keys())
 _URL = 'http://celestrak.com/NORAD/elements/'
 
+DEBUG_CACHE = False
 DEBUG = False
 VERBOSE = False
+
+NUM_TRACK = 50
+KM_BIN_SIZE = 100
+INC_BIN_SIZE = 5
+MAX_POINTS = 6000
+
 
 class TransitEvent():
     '''
     Object that contains info about a transit event
     '''
-    def __init__(self, rise_time, culminate_time, set_time, sat_name):
-        self.rise = rise_time
-        self.culminate = culminate_time
-        self.set = set_time
+    def __init__(self, rise_time, culminate_time, set_time, sat_name, satrecObj, loc_of_interest):
+        self.rise = rise_time # ts objects
+        self.culminate = culminate_time # ts objects
+        self.set = set_time # ts objects
         self.asset = sat_name
+        self.loc = loc_of_interest
+        self.geo_position = None # array of geocentric [x,y,z] (km) from rise to set 
+        self.latlon = None # array of [lat,lon] (deg)
+        self.azaltrange = None # array of [azimuth (deg), elevation (deg), range (km)] 
+
+        if isinstance(satrecObj, EarthSatellite):
+            self.satrec = satrecObj
+        else:
+            self.satrec = None
+            if DEBUG:
+                print('Did not add esatrec object!')
+
+    def get_ephem(self):
+        
+        res = False
+
+        ts = load.timescale()
+        ts_range = ts.linspace(self.rise, self.set, NUM_TRACK)
+        difference = self.satrec - self.loc
+
+        geo_pos = np.zeros([NUM_TRACK, 3])
+        lat_lon = np.zeros([NUM_TRACK, 2])
+        azaltrange = np.zeros([NUM_TRACK, 3])
+
+        for id, time in enumerate(ts_range):
+            geocentric = self.satrec.at(time)
+            lat, lon = wgs84.latlon_of(geocentric)
+
+            topocentric = difference.at(time)
+            alt, az, range = topocentric.altaz()
+
+            azaltrange[id] = np.array([az.degrees, alt.degrees, range.km])
+            geo_pos[id] = np.array([geocentric.position.km[0], geocentric.position.km[1], geocentric.position.km[2]])
+            lat_lon[id] = np.array([lat.degrees, lon.degrees])
+        
+        self.geo_position = geo_pos
+        self.latlon = lat_lon
+        self.azaltrange = azaltrange
+        res = True
+        return res
+
+    def is_populated(self):
+        status = False
+        check_latlon = self.latlon.shape == (2, NUM_TRACK)
+        check_azaltrange = self.azaltrange.shape == (2, NUM_TRACK)
+        check_position = self.geo_position.shape == (3, NUM_TRACK)
+
+        if check_latlon and check_azaltrange and check_position:
+            status = True
+        else:
+            if DEBUG: 
+                print(f"Ephemeris not populated for event: {self}")
+        return status
 
     def to_dict(self, tz):
         # utility for converting object into reportable data in given tz
@@ -39,7 +89,9 @@ class TransitEvent():
             'RISE': self.rise.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'CULMINATE': self.culminate.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'SET': self.set.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
-            'ASSET': self.asset
+            'ASSET': self.asset,
+            'RISE_AZIMUTH': self.azaltrange[0][0],
+            'SET_AZIMUTH': self.azaltrange[-1][0]
         }
 
     def __str__(self):
@@ -53,14 +105,24 @@ class SatelliteMember(EarthSatellite):
         self.satrec_object = st_object # see above for attrs
         self.events = []
 
-    def add_events(self, times, events):
+    def add_events(self, times, events, locObj):
         rise_events, culmination_events, setting_events = times[np.where(events==0)], times[np.where(events==1)], times[np.where(events==2)]
         # only add event if entire event is complete
         if len(rise_events) == len(culmination_events) == len(setting_events):
             for i in range(len(rise_events)):
-                event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name)
+                event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name, self.satrec_object, locObj)
+                # add event to list of events
                 self.events.append(event)
         return None
+
+    def create_ephemeris(self):
+        res = False
+        for event in self.events: 
+            # populates lat/lon with time for event 
+            res = event.get_ephem()
+            if DEBUG and VERBOSE: 
+                print(f"Using {NUM_TRACK} point per transit to compute ephems.")
+        return res
 
     def get_events_df(self, tz):
         # utility for converting class into pd df 
@@ -70,7 +132,7 @@ class SatelliteMember(EarthSatellite):
     def drop_events(self):
         # used for callback when location / time range changes, we do not want to remember events
         self.events = []
-    
+
     def __str__(self):
         str_title = f"{self.satrec_object.name} | Epoch: {self.satrec_object.epoch.utc_iso()} | Events: {len(self.events)}"
         for event in self.events:
@@ -82,9 +144,16 @@ class SatConstellation(object):
     Object that contains all relevant information and methods for constellation!
     '''
     def __init__(self, constellation):
-        self.constellation = constellation
-        self._debug = DEBUG
-        self._cache_debug = DEBUG
+
+        if constellation in CONSTELLATIONS:
+            self.constellation = constellation
+            self.min_elevation = cc.CONFIGS[constellation]['_MINELEVATIONS']
+            self.max_altitude = cc.CONFIGS[constellation]['_MAXALTITUDES']
+            self.radius_size = cc.CONFIGS[constellation]['_RADIUSLEVELS']
+            self.map_zoom = cc.CONFIGS[constellation]['_ZOOMLEVELS']
+        else:
+            st.error('Need a constellation to begin!')
+
         self.initialized = False
         self.num_passes = 0
         self.unique_passes = 0
@@ -105,8 +174,8 @@ class SatConstellation(object):
             # check that desired constellation is valid
             if self.constellation.upper() not in CONSTELLATIONS:
                 raise ValueError('Could not find constellation!')
-            if self._cache_debug:
-                print('Queried new data!')
+            if DEBUG_CACHE:
+                print('CACHE CHECK: Queried new data!')
             url = f'{_URL}{self.constellation.lower()}.txt'
             try:
                 satellites = load.tle_file(url)
@@ -116,8 +185,17 @@ class SatConstellation(object):
         
         member_satellites = []
         satellites = query_url()
+
+        # only add satellite with valid propagation
         for sat in satellites:
-            member_satellites.append(SatelliteMember(sat))
+            alt = (sat.model.am - 1) * sat.model.radiusearthkm
+            # will need to include this sanity check for adding satellite objects
+            if sat.model.error == 0 and alt > 0 and alt < 2*self.max_altitude:
+                member_satellites.append(SatelliteMember(sat))
+            else:
+                if DEBUG: 
+                    print(f'Did not add sat with error code: {cc.ERROR_CODES[str(sat.model.error)]}, dropping sat...')
+
         self.initialized = True
         return member_satellites
 
@@ -130,11 +208,11 @@ class SatConstellation(object):
         @return passes      generate passes vector
         '''
 
-        def findPasses():
+        def findTransits():
             for sat in self.satellites:
-                times, events = sat.satrec_object.find_events(self.cityLatLon, self.time[0], self.time[1], _MINELEVATIONS[self.constellation])
+                times, events = sat.satrec_object.find_events(self.cityLatLon, self.time[0], self.time[1], self.min_elevation)
                 if len(events) > 0:
-                    sat.add_events(times, events)
+                    sat.add_events(times, events, self.cityLatLon)
                 if DEBUG and VERBOSE: 
                     print(sat)
 
@@ -148,23 +226,63 @@ class SatConstellation(object):
         self.cityLatLon = wgs84.latlon(position[0], position[1])
         self.time = (ts.from_datetime(dateRange[0]), ts.from_datetime(dateRange[1]))
         self.tz = dateRange[0].tzinfo
-        findPasses()
-        return None
+        # Adds transit events to each satellite
+        findTransits()
+        # Returns a pandas dataframe and populates transit events with ephemeris info
+        return self.getSchedule()
 
     def getSchedule(self):
         '''
-        @return passes      PANDAS df [Satellite Name, Time of Rise (string), Culminate (string), Set (string)(Datetime object)]
+        @return passes      PANDAS df [Satellite Name, Time of Rise (string), Culminate (string), Set (string)]
         '''
-        df_list = []
-        for sat in self.satellites:
-            df_list.append(sat.get_events_df(self.tz))
-        passes_df = pd.concat(df_list)
-        # update class attributes
-        self.num_passes = len(passes_df)
-        if self.num_passes:
-            self.unique_passes = len(passes_df['ASSET'].unique())
-            self.schedule = passes_df
-        return self.schedule.copy()
+
+        def update_pass_stats():
+            num_passes = 0
+            num_sats_with_passes = 0
+            for sat in self.satellites:
+                if sat.events:
+                    num_sats_with_passes += 1
+                    num_passes += len(sat.events)
+            self.num_passes = num_passes
+            self.unique_passes = num_sats_with_passes
+            return None
+
+        def compute_ephems():
+            '''
+            @return None, computes points per transit based on number of transits and max points, for performance
+            '''
+            if self.num_passes > 0:
+                global NUM_TRACK
+                NUM_TRACK = int(MAX_POINTS / self.num_passes)
+                for sat in self.satellites:
+                    sat.create_ephemeris()
+            else:
+                if DEBUG:
+                    print('Did not generate schedule as there are no transits!')
+            return None
+
+        def get_pd_df():
+            if self.num_passes > 0:
+                df_list = []
+                for sat in self.satellites:
+                    df_list.append(sat.get_events_df(self.tz))
+                passes_df = pd.concat(df_list)
+                self.schedule = passes_df
+            else:
+                if DEBUG:
+                    print('Returning default empty DF, as there are no transits!')
+            return self.schedule.copy()
+
+        # get number of transits and update class attributes for transit stats
+        update_pass_stats()
+
+        # generate ephemeris based on num transits and max points per transit
+        compute_ephems()
+
+        # return pandas dataframe
+        df_to_display = get_pd_df()
+
+        return df_to_display
 
     def dropEvents(self):
         '''
@@ -176,22 +294,190 @@ class SatConstellation(object):
             sat.drop_events()
         return None
 
-    def generateHistogram(self):
-        # TODO: GENERATE HISTOGRAM FUNCTION
-        # values = sat_times.groupby([sat_times["DATETIME"].dt.day, sat_times["DATETIME"].dt.hour]).count()
-        # df2 = values[['SAT NAME']]
-        # test = self.schedule.copy()
-        # st.dataframe(test, use_container_width=True)
-        # test_group = test.groupby('CULMINATE TIME', as_index=False)
-        # fig = px.histogram(test, x="CULMINATE", y="SET", color="ASSET", marginal="rug", hover_data=test.columns)
-        # df = px.data.tips()
-        # st.dataframe(df, use_container_width=True)
-        # fig = px.histogram(df, x="total_bill", y="tip", color="sex", marginal="rug",
-        #                 hover_data=df.columns)
-        # st.plotly_chart(fig, theme="streamlit")
+    def showStats(self, usrLoc):
+        '''
+        @return None, shows all the plots / data
+        '''
+        
+        def display_results_summary():
+            col1, col2, col3, col4 = st.columns([1,1,1.5,2.5])
+            col1.metric("Transits", self.num_passes)
+            col2.metric("Satellites", self.unique_passes)
+            col3.metric("Constellation", self.constellation)
+            col4.metric(f"{self.min_elevation}° Above Horizon Over", usrLoc.selected_loc)
+   
+        def display_info_tab():
+            with st.expander("See explanation"):
+                    az_info_str = '''The azimuth is measured clockwise around the horizon, just like the degrees shown on a compass, 
+                                    from geographic north (0°) through east (90°), south (180°), and west (270°) before returning 
+                                    to the north and rolling over from 359° back to 0°. '''
+                    st.info(az_info_str, icon="ℹ️")
+
+                    tz_info_str = f'''All times reported are in local timezone of {usrLoc.selected_tz}.'''
+                    st.info(tz_info_str, icon="ℹ️")
+
+                    gTrack_info_str = f'''Limiting plotting to 6000 points total. 
+                                       These points are divided amongst number of transits equally. '''
+                    st.info(gTrack_info_str, icon="ℹ️")
+
+        display_results_summary()
+
+        tab1, tab2, tab3 = st.tabs(["Transits", "SMA Distribution", "Inclination Distribution"])
+
+        with tab1:
+            if self.num_passes > 0:
+                ele_info_str = f'''Showing transits over  {self.min_elevation}° of elevation above 
+                                the horizon (all times are in local timezone of {usrLoc.selected_loc}).'''
+                st.caption(ele_info_str)
+                transit_schedule = self.getTransits()
+                st.dataframe(transit_schedule, use_container_width=True)
+                
+                # plot ground tracks of transits
+                st.caption(f"Showing {NUM_TRACK} points for each ground track from transits over {usrLoc.selected_loc}.")
+                gTrack = self.generateGroundTracks()
+                st.pydeck_chart(gTrack)
+
+                display_info_tab()
+
+                # future implementation
+                # DOES NOT WORK WITH ASSET INDEX SET
+                # fig = px.timeline(transit_schedule, x_start="RISE", x_end="SET", y="ASSET")
+                # fig.update_yaxes(autorange="reversed")
+                # st.plotly_chart(fig, theme="streamlit")
+            else:
+                st.caption('No transists found in the given timeframe.')
+
+        with tab2:
+            st.caption(f"Distribution of mean semi-major axis (km) for all {len(self.satellites)} satellites in {self.constellation} constellation.")
+            smaHist = self.getSMADist()
+            st.plotly_chart(smaHist, theme="streamlit")
+        with tab3:
+            st.caption(f"Distribution of orbital inclination (deg from equator) for all {len(self.satellites)} satellites in {self.constellation} constellation.")
+            incDist = self.getIncDist()
+            st.plotly_chart(incDist, theme="streamlit")
         return None
 
+    def getTransits(self):
+        df = self.schedule.copy()
+        df.reset_index(inplace=True, drop=True)
+        # df["RISE"] = pd.to_datetime(df["RISE"])
+        # df["SET"] = pd.to_datetime(df["SET"])
+        # df["CULMINATE"] = pd.to_datetime(df["CULMINATE"])
+        df.set_index('ASSET', inplace=True)
+        df.sort_values(by='RISE', ascending = True, inplace = True)
+        return df
 
+    def generateGroundTracks(self):
+        lat_list, lon_list, asset_list = [], [], []
+        for sat in self.satellites:
+            for event in sat.events:
+                if event.is_populated:
+                    for node in event.latlon:
+                        lat_list.append(node[0])
+                        lon_list.append(node[1])
+                        asset_list.append(event.asset)
+                else:
+                    if DEBUG:
+                        print(f"Could not add event for ground tracks: {event}")
+
+        chart_data = pd.DataFrame({"lat": lat_list, "lon": lon_list, "asset": asset_list})
+
+        # Simple implementation
+        # st.map(chart_data)
+        viewState = pdk.ViewState(latitude=self.cityLatLon.latitude.degrees, 
+                                  longitude=self.cityLatLon.longitude.degrees,
+                                  zoom=self.map_zoom, pitch=0)
+
+        layer_1 = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
+                           get_color=[150, 249, 123], get_radius=self.radius_size, pickable=True, auto_highlight=True)
+
+        r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1])
+        return r
+
+    def getSMADist(self):
+
+        a_mean_list = []
+        name_list = []
+        launch_year = []
+        for sat in self.satellites:
+            try:
+                alt = (sat.satrec_object.model.am - 1) * sat.satrec_object.model.radiusearthkm
+                a_mean_list.append(alt)
+                name_list.append(sat.satrec_object.name)
+                launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
+            except:
+                print(type(alt))
+                print(sat.satrec_object.model.error)
+                print(f'Could not get mean SMA for {sat.satrec_object.name}')
+
+        df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'Asset': name_list, 'Launch Year': launch_year})
+        num_bins = int((max(a_mean_list) - min(a_mean_list)) / KM_BIN_SIZE)
+        # "Mean Semi-major Axis (km)"
+        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
+
+        if DEBUG and VERBOSE:
+            print(f"Plotting {len(a_mean_list)} SMAs out of {len(self.satellites)}!")
+            print(f"Using {num_bins} bins.")
+
+        return fig
+
+    def getIncDist(self):
+
+        inc_list = []
+        name_list = []
+        launch_year = []
+
+        for sat in self.satellites:
+            try:
+                inc = sat.satrec_object.model.inclo # radians
+                inc_list.append(inc)
+                name_list.append(sat.satrec_object.name)
+                launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
+            except:
+                print(type(inc))
+                print(sat.satrec_object.model.error)
+                print(f'Could not get mean SMA for {sat.satrec_object.name}')
+
+        inc_list = np.rad2deg(inc_list)
+
+        df_to_plot = pd.DataFrame({'incl (deg)': inc_list, 'Asset': name_list, 'Launch Year': launch_year})
+        num_bins = int((max(inc_list) - min(inc_list)) / INC_BIN_SIZE)
+        # "Inclination (deg)"
+        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
+
+        if DEBUG and VERBOSE:
+            print(f"Plotting {len(inc_list)} inclinations out of {len(self.satellites)}!")
+            print(f"Using {num_bins} bins.")
+
+        return fig
+
+
+
+# Complex pydeck plot implementation
+# Assign a color based on attraction_type
+# color_lookup = pdk.data_utils.assign_random_colors(chart_data['asset'])
+# Data now has an RGB color by asset type
+# chart_data['color'] = chart_data.apply(lambda row: color_lookup.get(row['asset']), axis=1)
+# layer = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
+#                   get_color='color', get_radius=600, pickable=True, auto_highlight=True)
+# Label datapoints with asset names
+# text_layer = pdk.Layer(
+#     type='TextLayer',
+#     id='text-layer',
+#     data=chart_data,
+#     pickable=True,
+#     get_position='[lon, lat]',
+#     get_text='tooltip',
+#     get_color='color',
+#     # billboard=False,
+#     get_size=12,
+#     # get_angle=0,
+#     # # Note that string constants in pydeck are explicitly passed as strings
+#     # # This distinguishes them from columns in a data set
+#     # get_text_anchor='"middle"',
+#     # get_alignment_baseline='"center"'
+# )
+# my_tooltip = {"text": f"{chart_data['tooltip']}"}
 
 # class SATREC_OBJECT():
 #     'name': 'FLOCK 3R-1', 
