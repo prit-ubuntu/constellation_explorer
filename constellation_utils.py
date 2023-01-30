@@ -17,7 +17,7 @@ VERBOSE = False
 NUM_TRACK = 50
 KM_BIN_SIZE = 100
 INC_BIN_SIZE = 5
-MAX_POINTS = 6000
+MAX_POINTS = 3000
 
 
 class TransitEvent():
