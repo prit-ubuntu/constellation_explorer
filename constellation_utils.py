@@ -37,9 +37,9 @@ class TransitEvent():
         if isinstance(satrecObj, EarthSatellite):
             self.satrec = satrecObj
         else:
-            self.satrec = None
+            raise TypeError
             if DEBUG:
-                print('Did not add esatrec object!')
+                print('Did not add satrec object!')
 
     def get_ephem(self):
         
@@ -91,7 +91,8 @@ class TransitEvent():
             'SET': self.set.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'ASSET': self.asset,
             'RISE_AZIMUTH': self.azaltrange[0][0],
-            'SET_AZIMUTH': self.azaltrange[-1][0]
+            'SET_AZIMUTH': self.azaltrange[-1][0],
+            'LAUNCH_YEAR': f"'{self.satrec.model.intldesg[0:2]}"
         }
 
     def __str__(self):
@@ -320,6 +321,32 @@ class SatConstellation(object):
                                        These points are divided amongst number of transits equally. '''
                     st.info(gTrack_info_str, icon="ℹ️")
 
+        def display_transits(types):
+            
+            for type in types:            
+                if type == "TABLE":
+                    # print tabular schedule
+                    transit_schedule = self.getTransits(purpose="TO_PRINT")
+                    st.dataframe(transit_schedule, use_container_width=True)
+                elif type == "TIMELINE":
+                    # plot timeline view
+                    sked_for_tl = self.getTransits(purpose="FOR_TIMELINE")
+                    sked_for_tl['Location'] = f"{usrLoc.selected_loc}"
+                    # fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y='LAUNCH_YEAR')
+                    fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y = "Location", color='ASSET', 
+                                    hover_data={'ASSET':True, "RISE":False, "SET":False, 
+                                    'RISE_AZIMUTH':':.2f', 'SET_AZIMUTH':':.2f', 'DURATION (sec)':':.2f'})
+                    fig.update_yaxes(autorange="reversed")
+                    st.plotly_chart(fig, theme="streamlit")
+                elif type == "GROUND_TRACKS":
+                    # plot ground tracks of transits
+                    st.caption(f"Showing {NUM_TRACK} points for each ground track from transits over {usrLoc.selected_loc}.")
+                    gTrack = self.generateGroundTracks()
+                    st.pydeck_chart(gTrack)
+                else:
+                    raise ValueError('cant find my purpose!!')
+            return None
+
         display_results_summary()
 
         tab1, tab2, tab3 = st.tabs(["Transits", "SMA Distribution", "Inclination Distribution"])
@@ -329,21 +356,9 @@ class SatConstellation(object):
                 ele_info_str = f'''Showing transits over  {self.min_elevation}° of elevation above 
                                 the horizon (all times are in local timezone of {usrLoc.selected_loc}).'''
                 st.caption(ele_info_str)
-                transit_schedule = self.getTransits()
-                st.dataframe(transit_schedule, use_container_width=True)
-                
-                # plot ground tracks of transits
-                st.caption(f"Showing {NUM_TRACK} points for each ground track from transits over {usrLoc.selected_loc}.")
-                gTrack = self.generateGroundTracks()
-                st.pydeck_chart(gTrack)
-
+                # display elements in this order
+                display_transits(types=["TIMELINE","GROUND_TRACKS","TABLE"])
                 display_info_tab()
-
-                # future implementation
-                # DOES NOT WORK WITH ASSET INDEX SET
-                # fig = px.timeline(transit_schedule, x_start="RISE", x_end="SET", y="ASSET")
-                # fig.update_yaxes(autorange="reversed")
-                # st.plotly_chart(fig, theme="streamlit")
             else:
                 st.caption('No transists found in the given timeframe.')
 
@@ -357,14 +372,23 @@ class SatConstellation(object):
             st.plotly_chart(incDist, theme="streamlit")
         return None
 
-    def getTransits(self):
+    def getTransits(self, purpose):
+        '''
+        returns dataframe based on purpose of request
+        '''
         df = self.schedule.copy()
-        df.reset_index(inplace=True, drop=True)
-        # df["RISE"] = pd.to_datetime(df["RISE"])
-        # df["SET"] = pd.to_datetime(df["SET"])
-        # df["CULMINATE"] = pd.to_datetime(df["CULMINATE"])
-        df.set_index('ASSET', inplace=True)
-        df.sort_values(by='RISE', ascending = True, inplace = True)
+        if purpose == "TO_PRINT":
+            # Only select a subset of columns
+            df = df[['ASSET','RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH']]
+            df.set_index('ASSET', inplace=True)
+            df.sort_values(by='RISE', ascending=True, inplace=True)
+        elif purpose == "FOR_TIMELINE":
+            df = df[['ASSET','RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH', 'LAUNCH_YEAR']]
+            df["RISE"] = pd.to_datetime(df["RISE"])
+            df["SET"] = pd.to_datetime(df["SET"])
+            df['DURATION (sec)'] = (df.SET - df.RISE) / pd.Timedelta(seconds=1)
+        else:
+            raise ValueError('cant find my purpose!!')
         return df
 
     def generateGroundTracks(self):
