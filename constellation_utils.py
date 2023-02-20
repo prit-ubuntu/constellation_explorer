@@ -349,7 +349,7 @@ class SatConstellation(object):
 
         display_results_summary()
 
-        tab1, tab2, tab3 = st.tabs(["Transits", "SMA Distribution", "Inclination Distribution"])
+        tab1, tab2 = st.tabs(["Transits", "Constellation Statistics"])
 
         with tab1:
             if self.num_passes > 0:
@@ -363,13 +363,11 @@ class SatConstellation(object):
                 st.caption('No transists found in the given timeframe.')
 
         with tab2:
-            st.caption(f"Distribution of mean semi-major axis (km) for all {len(self.satellites)} satellites in {self.constellation} constellation.")
             smaHist = self.getSMADist()
             st.plotly_chart(smaHist, theme="streamlit")
-        with tab3:
-            st.caption(f"Distribution of orbital inclination (deg from equator) for all {len(self.satellites)} satellites in {self.constellation} constellation.")
             incDist = self.getIncDist()
             st.plotly_chart(incDist, theme="streamlit")
+            st.caption(f"Showing results for {len(self.satellites)} satellites in {self.constellation} constellation.")
         return None
 
     def getTransits(self, purpose):
@@ -437,7 +435,8 @@ class SatConstellation(object):
         df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'Asset': name_list, 'Launch Year': launch_year})
         num_bins = int((max(a_mean_list) - min(a_mean_list)) / KM_BIN_SIZE)
         # "Mean Semi-major Axis (km)"
-        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
+        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", title="Altitude Distribution (km)",hover_data=df_to_plot.columns)
+        # fig.update_layout(xaxis_range=[0, max(a_mean_list)])
 
         if DEBUG and VERBOSE:
             print(f"Plotting {len(a_mean_list)} SMAs out of {len(self.satellites)}!")
@@ -467,7 +466,7 @@ class SatConstellation(object):
         df_to_plot = pd.DataFrame({'incl (deg)': inc_list, 'Asset': name_list, 'Launch Year': launch_year})
         num_bins = int((max(inc_list) - min(inc_list)) / INC_BIN_SIZE)
         # "Inclination (deg)"
-        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
+        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", title="Inclination Distribution (degrees)", hover_data=df_to_plot.columns)
 
         if DEBUG and VERBOSE:
             print(f"Plotting {len(inc_list)} inclinations out of {len(self.satellites)}!")
