@@ -12,6 +12,7 @@ _URL = 'http://celestrak.com/NORAD/elements/'
 
 DEBUG_CACHE = False
 DEBUG = False
+DEBUG_DATA = False
 VERBOSE = False
 
 NUM_TRACK = 50
@@ -428,6 +429,7 @@ class SatConstellation(object):
         name_list = []
         launch_year = []
         inc_list = []
+        norad_list = []
 
         for sat in self.satellites:
             try:
@@ -438,14 +440,18 @@ class SatConstellation(object):
                     launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
                     inc = sat.satrec_object.model.inclo # radians
                     inc_list.append(inc)
+                    norad_list.append(sat.satrec_object.model.satnum)
             except:
                 print(f'Found a prop error: {sat.satrec_object.model.error}')
                 print(f'Could not add data for {sat.satrec_object.name}')
 
         inc_list = np.rad2deg(inc_list)
 
-        df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'incl (deg)': inc_list, 'Asset': name_list, 'Launch Year': launch_year})
+        df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'incl (deg)': inc_list, 'NORAD ID': norad_list, 'Asset': name_list, 'Launch Year': launch_year})
         self.stats_df = df_to_plot
+
+        if DEBUG_DATA:
+            st.dataframe(df_to_plot)
 
         return None
 
