@@ -7,7 +7,7 @@
 ## Run the app in 3 Steps:
 1. ```git clone https://github.com/prit-ubuntu/constellation_explorer.git```  
 2. ```pip install -r requirements.txt```  
-3. ```streamlit run app.py```
+3. ```streamlit run 1_Constellation_Transits.py```
 ###### Get started by selecting a constellation in the sidebar, happy exploring!
 
 ## License
