@@ -12,6 +12,7 @@ _URL = 'http://celestrak.com/NORAD/elements/'
 
 DEBUG_CACHE = False
 DEBUG = False
+DEBUG_DATA = False
 VERBOSE = False
 
 NUM_TRACK = 50
@@ -162,6 +163,8 @@ class SatConstellation(object):
         self.satellites = self.get_sats()
         # To be filled by generated sched
         self.schedule = pd.DataFrame()
+        # pandas df to be plotted
+        self.stats_df = pd.DataFrame()
 
     def get_sats(self):
         '''
@@ -349,7 +352,7 @@ class SatConstellation(object):
 
         display_results_summary()
 
-        tab1, tab2, tab3 = st.tabs(["Transits", "SMA Distribution", "Inclination Distribution"])
+        tab1, tab2 = st.tabs(["Transits", "Constellation Statistics"])
 
         with tab1:
             if self.num_passes > 0:
@@ -363,13 +366,15 @@ class SatConstellation(object):
                 st.caption('No transists found in the given timeframe.')
 
         with tab2:
-            st.caption(f"Distribution of mean semi-major axis (km) for all {len(self.satellites)} satellites in {self.constellation} constellation.")
+            # gets a pandas df for stats to be plotted
+            self.getDataPDtoPlot()
+            launchDist = self.getLaunchDist()
+            st.plotly_chart(launchDist, theme="streamlit")
             smaHist = self.getSMADist()
             st.plotly_chart(smaHist, theme="streamlit")
-        with tab3:
-            st.caption(f"Distribution of orbital inclination (deg from equator) for all {len(self.satellites)} satellites in {self.constellation} constellation.")
             incDist = self.getIncDist()
             st.plotly_chart(incDist, theme="streamlit")
+            st.caption(f"Showing results for {len(self.satellites)} satellites in {self.constellation} constellation.")
         return None
 
     def getTransits(self, purpose):
@@ -418,64 +423,57 @@ class SatConstellation(object):
         r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1])
         return r
 
-    def getSMADist(self):
+    def getDataPDtoPlot(self):
 
         a_mean_list = []
         name_list = []
         launch_year = []
+        inc_list = []
+        norad_list = []
+
         for sat in self.satellites:
             try:
                 alt = (sat.satrec_object.model.am - 1) * sat.satrec_object.model.radiusearthkm
-                a_mean_list.append(alt)
-                name_list.append(sat.satrec_object.name)
-                launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
+                if alt > 0 and alt < 2*self.max_altitude:
+                    a_mean_list.append(alt) # kms
+                    name_list.append(sat.satrec_object.name)
+                    launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
+                    inc = sat.satrec_object.model.inclo # radians
+                    inc_list.append(inc)
+                    norad_list.append(sat.satrec_object.model.satnum)
             except:
-                print(type(alt))
-                print(sat.satrec_object.model.error)
-                print(f'Could not get mean SMA for {sat.satrec_object.name}')
-
-        df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'Asset': name_list, 'Launch Year': launch_year})
-        num_bins = int((max(a_mean_list) - min(a_mean_list)) / KM_BIN_SIZE)
-        # "Mean Semi-major Axis (km)"
-        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
-
-        if DEBUG and VERBOSE:
-            print(f"Plotting {len(a_mean_list)} SMAs out of {len(self.satellites)}!")
-            print(f"Using {num_bins} bins.")
-
-        return fig
-
-    def getIncDist(self):
-
-        inc_list = []
-        name_list = []
-        launch_year = []
-
-        for sat in self.satellites:
-            try:
-                inc = sat.satrec_object.model.inclo # radians
-                inc_list.append(inc)
-                name_list.append(sat.satrec_object.name)
-                launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
-            except:
-                print(type(inc))
-                print(sat.satrec_object.model.error)
-                print(f'Could not get mean SMA for {sat.satrec_object.name}')
+                print(f'Found a prop error: {sat.satrec_object.model.error}')
+                print(f'Could not add data for {sat.satrec_object.name}')
 
         inc_list = np.rad2deg(inc_list)
 
-        df_to_plot = pd.DataFrame({'incl (deg)': inc_list, 'Asset': name_list, 'Launch Year': launch_year})
-        num_bins = int((max(inc_list) - min(inc_list)) / INC_BIN_SIZE)
-        # "Inclination (deg)"
-        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", hover_data=df_to_plot.columns)
+        df_to_plot = pd.DataFrame({'meanSMA (km)': a_mean_list, 'incl (deg)': inc_list, 'NORAD ID': norad_list, 'Asset': name_list, 'Launch Year': launch_year})
+        self.stats_df = df_to_plot
 
-        if DEBUG and VERBOSE:
-            print(f"Plotting {len(inc_list)} inclinations out of {len(self.satellites)}!")
-            print(f"Using {num_bins} bins.")
+        if DEBUG_DATA:
+            st.dataframe(df_to_plot)
 
+        return None
+
+    def getLaunchDist(self):
+        # Histogram of satelites launched per year
+        df_to_plot = self.stats_df
+        fig = px.histogram(df_to_plot, x="Launch Year", marginal="rug", color="Launch Year", title="# of Satellites Launched",hover_data=df_to_plot.columns) 
         return fig
 
+    def getSMADist(self):
+        # "Mean Semi-major Axis (km)"
+        df_to_plot = self.stats_df
+        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", title="Altitude Distribution (km)",hover_data=df_to_plot.columns)        
+        # fig.update_layout(xaxis_range=[0, max(a_mean_list)])
+        return fig
 
+    def getIncDist(self):
+        df_to_plot = self.stats_df
+        # num_bins = int((max(inc_list) - min(inc_list)) / INC_BIN_SIZE)
+        # "Inclination (deg)"
+        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", title="Inclination Distribution (degrees)", hover_data=df_to_plot.columns)
+        return fig
 
 # Complex pydeck plot implementation
 # Assign a color based on attraction_type

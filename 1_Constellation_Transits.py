@@ -7,9 +7,12 @@ from pytz import timezone
 
 # Meta Info
 st.set_page_config(page_title='Constellation Transit Finder', page_icon="🔭", initial_sidebar_state='expanded')
-st.title('Constellation Explorer 🛰 🛰 🛰')
-st.write('Explore transits of satellites from the biggest constellations for over any area on Earth.')
-st.subheader('Satellite Transit Summary')
+st.subheader('Constellation Transits 🛰 🛰 🛰')
+st.caption(''' Explore transits of satellites from the biggest constellations 
+for over any area on Earth. Visualize constellation specific statistics such as 
+satellites launched per year, inclination and altitude distributions!
+''')
+st.write('Constellation Transit Summary')
 
 # After main page title
 def get_results(constObj):
@@ -27,7 +30,7 @@ def update_events(const_to_change):
 # UI Elements
 # ------------------------- Sidebar panel
 # Get user input:
-st.sidebar.title('Begin here 👇')
+st.sidebar.write('Begin here 👇')
 
 # 1. Get Constellation
 constellationChoice = st.sidebar.selectbox('Select a Constellation', const_utils.CONSTELLATIONS)
@@ -58,13 +61,13 @@ if usrLoc.initialized:
 # 3. Get Date Range
 currentDate = dt.now(timezone(usrLoc.selected_tz))
 dateOptStart = dt(currentDate.year, currentDate.month, currentDate.day, currentDate.hour, 0, 0, 0, timezone(usrLoc.selected_tz))
-dateChoice = st.slider(
+dateChoice = st.sidebar.slider(
     f"Select time range (_timezone: {usrLoc.selected_tz})_:",
     min_value = dateOptStart,
     max_value = dateOptStart + timedelta(days=3),
     value=(dateOptStart, dateOptStart + timedelta(days=1, hours=12)),
     step = (timedelta(hours=6)),
-    format = "MM/DD/YY - HH:mm", on_change=update_events, args=(constellation,))
+    format = "MM/DD/YY HH:mm", on_change=update_events, args=(constellation,))
 usrLoc.initialize_time_services(dateChoice)
 if usrLoc.timerangeset:
     with st.spinner("Computing transit schedule..."):
@@ -75,12 +78,3 @@ else:
 # 4. Display Map
 st.sidebar.map(data=pd.DataFrame({'lat': usrLoc.selected_position[0], 'lon': usrLoc.selected_position[1]}, index=[0]), zoom=5, use_container_width=True)
 
-# 5. About Section
-st.sidebar.header('**About**')
-st.sidebar.write('''
-This app uses satellite positional data captured inside TLEs (Two Line Element Sets) from [Celestrak](http://celestrak.org/NORAD/elements/) that are propagated by [Skyfield API](https://rhodesmill.org/skyfield/) which leverages 
-the sgp4 library. Get started by selecting a constellation in the sidebar, happy exploring!
-''')
-st.sidebar.write('''
-This tool was co-created by [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/) and [Michael Levy](https://www.linkedin.com/in/levymp/) from their shared love of streamlit and passion for satellite constellations. 
-''')

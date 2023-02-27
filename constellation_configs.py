@@ -84,3 +84,30 @@ ERROR_CODES = {
     "5": "N/A: Not used anymore.",
     "6": "Orbit has decayed: the computed position is underground.",
 }
+
+TLE_GROUP_URL = {
+    "Space Stations": "stations",
+    "Brightest Satellites": "visual",
+    "Russian ASAT Test Debris (COSMOS 1408)": "1982-092",
+    "Chinese ASAT Test Debris (FENGYUN 1C)": "1999-025",
+    "IRIDIUM 33 Debris" : "iridium-33-debris",
+    "COSMOS 2251 Debris" : "cosmos-2251-debris", 
+    "Weather Satellites": "weather", 
+    "Disaster Monitoring": "dmc", 
+    "Search & Rescue (SARSAT)": "sarsat",
+    "Tracking and Data Relay Satellite System (TDRSS)" : "tdrss", 
+    "CubeSats": "cubesat", 
+    "GPS Operational": "gps-ops", 
+    "Spire": "spire", 
+    "Planet": "planet", 
+    "Starlink": "starlink", 
+    "Swarm": "swarm", 
+    "OneWeb": "oneweb", 
+    "Galileo": "galileo", 
+    "Beidou": "beidou",
+    "GNSS": "gnss", 
+    "Iridium": "iridium", 
+    "NOAA": "noaa"
+}
+
+
