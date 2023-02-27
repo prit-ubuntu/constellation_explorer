@@ -9,7 +9,7 @@ from skyfield.timelib import Time as SkyfieldTime
 import constellation_configs as cc
 
 NUM_TRACK = 500
-DEBUG = True
+DEBUG = False
 
 DT_FORMAT = '%b %d, %Y %H:%M:%S'
 
