@@ -9,6 +9,7 @@ from skyfield.timelib import Time as SkyfieldTime
 import constellation_configs as cc
 
 NUM_TRACK = 500
+NUM_TRACK_ENDPOINTS = 7
 DEBUG = False
 
 DT_FORMAT = '%b %d, %Y %H:%M:%S'
@@ -105,9 +106,8 @@ class SatelliteEphemeris(StateVector):
         # Color starting and ending points differently
         green_for_start = [0, 255, 0]
         red_for_end = [255, 0, 0]
-        color_list[0] = green_for_start
-        color_list[-1] = red_for_end
-
+        color_list[:NUM_TRACK_ENDPOINTS] = [green_for_start] * NUM_TRACK_ENDPOINTS
+        color_list[-NUM_TRACK_ENDPOINTS:] = [red_for_end] * NUM_TRACK_ENDPOINTS
         return color_list
     
     def __getPosList(self):
@@ -183,29 +183,35 @@ class Satellite(EarthSatellite):
         '''
         generates an ephemeris for the satellite and plots the groun track
         '''
-        ts = load.timescale()
-        start_time = ts.from_datetime(dateChoice[0].replace(tzinfo=utc))
-        end_time = ts.from_datetime(dateChoice[1].replace(tzinfo=utc))
-
-        self.print_summary()
-
-        if self.__createEphemeris(start_time, end_time):
-            df_to_plot = self.ephemeris.get_df_with_fields()
-            if DEBUG:
-                print(f"Plotting {len(df_to_plot.epoch)} state vectors between " 
-                      f"{start_time.utc_strftime(DT_FORMAT)} and {end_time.utc_strftime(DT_FORMAT)}")
+        
+        if dateChoice[1] == dateChoice[0]:
+            st.error('Please select a different stop time, start time and stop time cannot be same!')
         else:
-            st.exception("Failed to generate ephemeris, can't plot ground tracks!")
-        
-        viewState = pdk.ViewState(latitude=0, longitude=0, zoom=0.1, pitch=0)
-        layer_1 = pdk.Layer('ScatterplotLayer', data=df_to_plot, get_position='[lon, lat]',
-                           get_color='colors', get_radius=7e4, pickable=True, auto_highlight=True)
-        r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1])
-        st.pydeck_chart(r)
-        
-        st.caption(f"Plotting {len(df_to_plot.epoch)} state vectors between " 
-                   f"{start_time.utc_strftime(DT_FORMAT)} and {end_time.utc_strftime(DT_FORMAT)} UTC.")
-        
-        return r
+            ts = load.timescale()
+            start_time = ts.from_datetime(dateChoice[0].replace(tzinfo=utc))
+            end_time = ts.from_datetime(dateChoice[1].replace(tzinfo=utc))
+
+            self.print_summary()
+
+            if self.__createEphemeris(start_time, end_time):
+                df_to_plot = self.ephemeris.get_df_with_fields()
+                if DEBUG:
+                    print(f"Plotting {len(df_to_plot.epoch)} state vectors between " 
+                        f"{start_time.utc_strftime(DT_FORMAT)} and {end_time.utc_strftime(DT_FORMAT)}")
+            else:
+                st.exception("Failed to generate ephemeris, can't plot ground tracks!")
+            
+            viewState = pdk.ViewState(latitude=0, longitude=0, zoom=0.1, pitch=0)
+            layer_1 = pdk.Layer('ScatterplotLayer', data=df_to_plot, get_position='[lon, lat]',
+                            get_color='colors', get_radius=7e4, pickable=True, auto_highlight=True)
+            r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1])
+            st.pydeck_chart(r)
+            
+            st.caption('Legend: Yellow = Sunlit | Purple = Eclipsed | Green = Orbit Start | Red = Orbit End')
+            st.sidebar.caption(f'''
+                        Plotting {len(df_to_plot.epoch)} state vectors between
+                        {start_time.utc_strftime(DT_FORMAT)} and {end_time.utc_strftime(DT_FORMAT)} UTC.
+                        ''')
+        return None
         
 
