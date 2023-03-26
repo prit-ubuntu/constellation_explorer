@@ -53,16 +53,13 @@ st.sidebar.columns(2)
 lat = st.sidebar.number_input('Latitude', min_value= -90.0, max_value= 90.0, value=usrLoc.locations_dict[usrLoc.selected_loc][0], disabled=lat_long_input_disabled, on_change=update_events, args=(constellation,))
 lon = st.sidebar.number_input('Longitude', min_value= -180.0, max_value=180.0, value=usrLoc.locations_dict[usrLoc.selected_loc][1], disabled=lat_long_input_disabled, on_change=update_events, args=(constellation,))
 usrLoc.selected_position = (lat, lon)
-usrLoc._update_timezone()
-
-if usrLoc.initialized:
-    st.sidebar.success(f"Timezone Identified: {usrLoc.selected_tz}.", icon="✅")
+usrLoc.update_timezone()
 
 # 3. Get Date Range
 currentDate = dt.now(timezone(usrLoc.selected_tz))
 dateOptStart = dt(currentDate.year, currentDate.month, currentDate.day, currentDate.hour, 0, 0, 0, timezone(usrLoc.selected_tz))
 dateChoice = st.sidebar.slider(
-    f"Select time range (_timezone: {usrLoc.selected_tz})_:",
+    f"Select time range ({usrLoc.selected_tz}):",
     min_value = dateOptStart,
     max_value = dateOptStart + timedelta(days=3),
     value=(dateOptStart, dateOptStart + timedelta(days=1, hours=12)),

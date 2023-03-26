@@ -7,10 +7,11 @@ from skyfield.api import utc
 from skyfield.positionlib import Geocentric
 from skyfield.timelib import Time as SkyfieldTime
 import constellation_configs as cc
+from constellation_utils import TransitEvent
 
 NUM_TRACK = 500
 NUM_TRACK_ENDPOINTS = 7
-DEBUG = False
+DEBUG = True
 
 DT_FORMAT = '%b %d, %Y %H:%M:%S'
 
@@ -136,6 +137,41 @@ class Satellite(EarthSatellite):
     def __init__(self, st_object):
         self.satrec_object = st_object # see above for attrs
         self.ephemeris = None # SatelliteEphemeris object
+        self.events = [] # array of transit events, filled by generatePasses
+        self.min_elevation = 40 # degree above horizon for transits
+
+    def generatePasses(self, usrLocObject):
+
+        def add_events(self, times, events, locObj, locName):
+            rise_events, culmination_events, setting_events = times[np.where(events==0)], times[np.where(events==1)], times[np.where(events==2)]
+            # only add event if entire event is complete
+            if len(rise_events) == len(culmination_events) == len(setting_events):
+                for i in range(len(rise_events)):
+                    event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name, self.satrec_object, locObj)
+                    # add event to list of events
+                    self.events.append(event)
+                    if DEBUG:
+                        print(event)
+                if DEBUG:
+                    print(f"Found {len(rise_events)} transits for {locName} for {self.min_elevation} degrees above the horizon.")
+                    print("-"*45)
+            return None
+        
+        def findTransits():
+            for idx, loc in enumerate(usrLocObject.selected_position_array):
+                cityLatLon = wgs84.latlon(loc[0], loc[1])
+                ts = load.timescale()
+                time_range = (ts.from_datetime(usrLocObject.date_range[0]), ts.from_datetime(usrLocObject.date_range[1]))
+                times, events = self.satrec_object.find_events(cityLatLon, time_range[0], time_range[1], self.min_elevation)
+                if len(events) > 0:
+                    add_events(self, times, events, cityLatLon, usrLocObject.selected_loc_array[idx])
+
+            if len(self.events) > 1:
+                print(f"Found {len(self.events)} events for {len(usrLocObject.selected_position_array)} locations.")
+            else:
+                print(f"Found no transits for these locations: {usrLocObject.selected_loc_array}")
+
+        findTransits()
 
     def __createEphemeris(self, t_start, t_end):
         res = False

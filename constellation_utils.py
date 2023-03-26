@@ -30,7 +30,7 @@ class TransitEvent():
         self.culminate = culminate_time # ts objects
         self.set = set_time # ts objects
         self.asset = sat_name
-        self.loc = loc_of_interest
+        self.loc = loc_of_interest # wgs84 GEOID object
         self.geo_position = None # array of geocentric [x,y,z] (km) from rise to set 
         self.latlon = None # array of [lat,lon] (deg)
         self.azaltrange = None # array of [azimuth (deg), elevation (deg), range (km)] 
@@ -41,6 +41,7 @@ class TransitEvent():
             raise TypeError
             if DEBUG:
                 print('Did not add satrec object!')
+                
 
     def get_ephem(self):
         
@@ -330,6 +331,8 @@ class SatConstellation(object):
                 if type == "TABLE":
                     # print tabular schedule
                     transit_schedule = self.getTransits(purpose="TO_PRINT")
+                    # 'ASSET', 'RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH'
+                    transit_schedule.rename(columns={'RISE':f'RISE TIME {usrLoc.selected_tz}'})
                     st.dataframe(transit_schedule, use_container_width=True)
                 elif type == "TIMELINE":
                     # plot timeline view
@@ -337,7 +340,7 @@ class SatConstellation(object):
                     sked_for_tl['Location'] = f"{usrLoc.selected_loc}"
                     # fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y='LAUNCH_YEAR')
                     fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y = "Location", color='ASSET', 
-                                    hover_data={'ASSET':True, "RISE":False, "SET":False, 
+                                    hover_data={'ASSET':True, "RISE": False, "SET": False, 
                                     'RISE_AZIMUTH':':.2f', 'SET_AZIMUTH':':.2f', 'DURATION (sec)':':.2f'})
                     fig.update_yaxes(autorange="reversed")
                     st.plotly_chart(fig, theme="streamlit")
@@ -357,7 +360,7 @@ class SatConstellation(object):
         with tab1:
             if self.num_passes > 0:
                 ele_info_str = f'''Showing transits over  {self.min_elevation}° of elevation above 
-                                the horizon (all times are in local timezone of {usrLoc.selected_loc}).'''
+                                the horizon ({usrLoc.selected_tz} time).'''
                 st.caption(ele_info_str)
                 # display elements in this order
                 display_transits(types=["TIMELINE","GROUND_TRACKS","TABLE"])
@@ -384,14 +387,16 @@ class SatConstellation(object):
         df = self.schedule.copy()
         if purpose == "TO_PRINT":
             # Only select a subset of columns
-            df = df[['ASSET','RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH']]
+            df = df[['ASSET', 'RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH']]
             df.set_index('ASSET', inplace=True)
             df.sort_values(by='RISE', ascending=True, inplace=True)
+            # df.rename(columns={"RISE": "a", "SET": "c"}, inplace=True)
         elif purpose == "FOR_TIMELINE":
-            df = df[['ASSET','RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH', 'LAUNCH_YEAR']]
+            df = df[['ASSET', 'RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH', 'LAUNCH_YEAR']]
             df["RISE"] = pd.to_datetime(df["RISE"])
             df["SET"] = pd.to_datetime(df["SET"])
             df['DURATION (sec)'] = (df.SET - df.RISE) / pd.Timedelta(seconds=1)
+            # df.rename(columns={"RISE": "a", "SET": "c"}, inplace=True)
         else:
             raise ValueError('cant find my purpose!!')
         return df
