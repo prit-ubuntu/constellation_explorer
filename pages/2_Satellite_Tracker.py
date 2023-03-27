@@ -14,6 +14,19 @@ and visualize ground tracks over a selected time range.
 ''')
 st.write('Satellite Summary')
 
+def update_events(sat_to_change):
+    # Used a callback to drop events for stale loc, timerange
+    sat_to_change.drop_events()
+
+def get_results(locationChoice, dateChoice, usrLoc, satObject):
+
+    if len(locationChoice) > 0:
+        with st.spinner("Computing satellite ground tracks..."):
+            satObject.display_results(dateChoice, usrLoc)
+    else:
+        st.error("Select at least one location for transits!")
+
+
 # UI Elements
 # ------------------------- Sidebar panel
 # Get user input:
@@ -23,7 +36,7 @@ st.sidebar.write('Begin here 👇')
 satellite_group_type = st.sidebar.selectbox('Select a satellite group:', tuple(cc.TLE_GROUP_URL))
 _URL = 'http://celestrak.com/NORAD/elements/'
 url = f'{_URL}{cc.TLE_GROUP_URL[satellite_group_type]}.txt'
-satellites = load.tle_file(url, reload=True)
+satellites = load.tle_file(url)
 st.sidebar.success(f"Loaded {len(satellites)} satellites.",icon="✅")
 
 # 2. Select satellite of interest
@@ -32,7 +45,9 @@ options = st.sidebar.selectbox('Select a satellite:', tuple(by_name))
 satObject = st_utils.Satellite(by_name[str(options)])
 
 usrLoc = loc_utils.UserLocation()
-locationChoice = st.sidebar.multiselect('Select a Location', usrLoc.locations_list, ['BOULDER', 'MUMBAI'])
+locationChoice = st.sidebar.multiselect('Select locations for transits', list(usrLoc.locations_list), 
+                    ['BOULDER', 'MUMBAI', 'SYDNEY', 'TOKYO', 'CAIRO', 'SAN FRANCISCO', 'CAPE TOWN', 'RIO DE JIANERIO', 'REYKJAVIK', 'MOSCOW'],
+                    on_change=update_events, args=(satObject,))
 usrLoc.initialize_location_services(locationChoice, multi=True)
 usrLoc.update_timezone(input_needed=False) # sets usrLoc.selected_tz to UTC by default
 
@@ -48,10 +63,4 @@ dateChoice = st.sidebar.slider(
     format = "MM/DD HH:mm")
 usrLoc.initialize_time_services(dateChoice)
 
-
-with st.spinner("Computing satellite ground tracks..."):
-    satObject.plot_ground_tracks(dateChoice)
-
-satObject.generatePasses(usrLoc)
-
-
+get_results(locationChoice, dateChoice, usrLoc, satObject)

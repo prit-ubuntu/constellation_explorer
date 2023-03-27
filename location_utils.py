@@ -8,6 +8,8 @@ from datetime import (datetime as dt, time, timedelta)
 import warnings
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
+DEBUG = False
+
 LOCATIONS = {'BOULDER': (40.015, -105.27),
              'SAN FRANCISCO': (37.78, -122.41),
              'NEW YORK': (40.73, -74.0),
@@ -58,7 +60,8 @@ class UserLocation(object):
         else:
             self.selected_loc_array = choice
             self.selected_position_array = [self.locations_dict[loc] for loc in choice]
-            print(f"Added {len(self.selected_loc_array)} locations.")
+            if DEBUG:
+                print(f"Added {len(self.selected_loc_array)} locations.")
 
         self.initialized = True
 
@@ -74,7 +77,8 @@ class UserLocation(object):
 
         if not input_needed:
             self.selected_tz = 'UTC'
-            print('Set default to UTC for multiple locations.')
+            if DEBUG:
+                print('Set default to UTC for multiple locations.')
             return
 
         usr_tz_pref = st.sidebar.radio("Select timezone preferences:",('UTC', 'Local time'))

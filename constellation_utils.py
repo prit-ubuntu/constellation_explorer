@@ -25,12 +25,13 @@ class TransitEvent():
     '''
     Object that contains info about a transit event
     '''
-    def __init__(self, rise_time, culminate_time, set_time, sat_name, satrecObj, loc_of_interest):
+    def __init__(self, rise_time, culminate_time, set_time, sat_name, satrecObj, goeposition, loc_name):
         self.rise = rise_time # ts objects
         self.culminate = culminate_time # ts objects
         self.set = set_time # ts objects
         self.asset = sat_name
-        self.loc = loc_of_interest # wgs84 GEOID object
+        self.loc = goeposition # wgs84 GEOID object
+        self.loc_name = loc_name # string from UserLocation.selected_loc
         self.geo_position = None # array of geocentric [x,y,z] (km) from rise to set 
         self.latlon = None # array of [lat,lon] (deg)
         self.azaltrange = None # array of [azimuth (deg), elevation (deg), range (km)] 
@@ -87,7 +88,9 @@ class TransitEvent():
 
     def to_dict(self, tz):
         # utility for converting object into reportable data in given tz
-        return {
+        
+        dict_ret = {
+            'LOCATION': self.loc_name,
             'RISE': self.rise.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'CULMINATE': self.culminate.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'SET': self.set.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
@@ -96,6 +99,8 @@ class TransitEvent():
             'SET_AZIMUTH': self.azaltrange[-1][0],
             'LAUNCH_YEAR': f"'{self.satrec.model.intldesg[0:2]}"
         }
+ 
+        return dict_ret
 
     def __str__(self):
         return f"\n  Rise: {self.rise.utc_iso()} | Culminate: {self.culminate.utc_iso()} | Set: {self.set.utc_iso()}"
@@ -108,12 +113,12 @@ class SatelliteMember(EarthSatellite):
         self.satrec_object = st_object # see above for attrs
         self.events = []
 
-    def add_events(self, times, events, locObj):
+    def add_events(self, times, events, geoposition, for_loc):
         rise_events, culmination_events, setting_events = times[np.where(events==0)], times[np.where(events==1)], times[np.where(events==2)]
         # only add event if entire event is complete
         if len(rise_events) == len(culmination_events) == len(setting_events):
             for i in range(len(rise_events)):
-                event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name, self.satrec_object, locObj)
+                event = TransitEvent(rise_events[i], culmination_events[i], setting_events[i], self.satrec_object.name, self.satrec_object, geoposition, for_loc)
                 # add event to list of events
                 self.events.append(event)
         return None
@@ -213,11 +218,11 @@ class SatConstellation(object):
         @return passes      generate passes vector
         '''
 
-        def findTransits():
+        def findTransits(usrLocObject):
             for sat in self.satellites:
                 times, events = sat.satrec_object.find_events(self.cityLatLon, self.time[0], self.time[1], self.min_elevation)
                 if len(events) > 0:
-                    sat.add_events(times, events, self.cityLatLon)
+                    sat.add_events(times, events, self.cityLatLon, usrLocObject.selected_loc)
                 if DEBUG and VERBOSE: 
                     print(sat)
 
@@ -232,7 +237,7 @@ class SatConstellation(object):
         self.time = (ts.from_datetime(dateRange[0]), ts.from_datetime(dateRange[1]))
         self.tz = dateRange[0].tzinfo
         # Adds transit events to each satellite
-        findTransits()
+        findTransits(usrLocObject)
         # Returns a pandas dataframe and populates transit events with ephemeris info
         return self.getSchedule()
 
@@ -332,7 +337,6 @@ class SatConstellation(object):
                     # print tabular schedule
                     transit_schedule = self.getTransits(purpose="TO_PRINT")
                     # 'ASSET', 'RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH'
-                    transit_schedule.rename(columns={'RISE':f'RISE TIME {usrLoc.selected_tz}'})
                     st.dataframe(transit_schedule, use_container_width=True)
                 elif type == "TIMELINE":
                     # plot timeline view
