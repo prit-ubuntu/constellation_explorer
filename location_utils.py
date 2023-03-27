@@ -8,6 +8,8 @@ from datetime import (datetime as dt, time, timedelta)
 import warnings
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
+DEBUG = False
+
 LOCATIONS = {'BOULDER': (40.015, -105.27),
              'SAN FRANCISCO': (37.78, -122.41),
              'NEW YORK': (40.73, -74.0),
@@ -49,10 +51,19 @@ class UserLocation(object):
         self.selected_tz = 'UTC' # string
         self.date_range = None # TUPLE of start/stop datetime objects (with timezone)
         self.timerangeset = False
+        self.usr_tz_pref_str = "UTC" # default return string for usr pref
 
-    def initialize_location_services(self, choice):
+    def initialize_location_services(self, choice, multi=False):
+        
+        if not multi:
+            self.selected_loc = choice # string / single location
+        else:
+            self.selected_loc_array = choice
+            self.selected_position_array = [self.locations_dict[loc] for loc in choice]
+            if DEBUG:
+                print(f"Added {len(self.selected_loc_array)} locations.")
+
         self.initialized = True
-        self.selected_loc = choice #string
 
     def initialize_time_services(self, dateChoice):
         if dateChoice[1] > dateChoice[0]:
@@ -62,11 +73,24 @@ class UserLocation(object):
             self.timerangeset = True
         return None
 
-    def _update_timezone(self):
-        tf = TimezoneFinder()
-        tzName = tf.timezone_at(lat=self.selected_position[0],lng=self.selected_position[1])
-        if tzName is not None:
-            self.selected_tz = tzName
+    def update_timezone(self, input_needed=True):
+
+        if not input_needed:
+            self.selected_tz = 'UTC'
+            if DEBUG:
+                print('Set default to UTC for multiple locations.')
+            return
+
+        usr_tz_pref = st.sidebar.radio("Select timezone preferences:",('UTC', 'Local time'))
+        if usr_tz_pref == 'Local time':
+            tf = TimezoneFinder()
+            tzName = tf.timezone_at(lat=self.selected_position[0],lng=self.selected_position[1])
+            if tzName is not None:
+                self.selected_tz = tzName
+            else:
+                self.initialized = False
+                st.sidebar.error('Unable to find timezone based on provided lat/long. Please update the lat/long to ensure timezone is supported.')
         else:
-            self.initialized = False
-            st.sidebar.error('Unable to find timezone based on provided lat/long. Please update the lat/long to ensure timezone is supported.')
+            self.selected_tz = 'UTC'
+        
+        self.usr_tz_pref_str = usr_tz_pref
