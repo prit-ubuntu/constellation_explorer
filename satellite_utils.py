@@ -142,6 +142,11 @@ class Satellite(EarthSatellite):
         self.events = [] # array of transit events, filled by generatePasses
         self.min_elevation = 20 # degree above horizon for transits
 
+    def get_min_elevation(self):
+        help_str = "The angle of a satellite measured upwards from the observer's horizon. Thus, an object on the horizon has an elevation of 0° and one directly overhead has an elevation of 90°."
+        self.min_elevation = st.sidebar.slider("Restrict transits above horizon (degrees):", min_value=0, max_value=80, value=30, step=10, help=help_str)
+        return None
+
     def compute_transits(self, usrLocObject):
 
         def add_events(self, times, events, locObj, locName):

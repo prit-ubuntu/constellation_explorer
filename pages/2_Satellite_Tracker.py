@@ -46,7 +46,7 @@ satObject = st_utils.Satellite(by_name[str(options)])
 
 usrLoc = loc_utils.UserLocation()
 locationChoice = st.sidebar.multiselect('Select locations for transits', list(usrLoc.locations_list), 
-                    ['BOULDER', 'MUMBAI', 'SYDNEY', 'TOKYO', 'CAIRO', 'SAN FRANCISCO', 'CAPE TOWN', 'RIO DE JIANERIO', 'REYKJAVIK', 'MOSCOW'],
+                    ['BOULDER', 'MUMBAI', 'SYDNEY', 'TOKYO', 'CAIRO', 'SAN FRANCISCO', 'CAPE TOWN', 'RIO DE JIANERIO', 'REYKJAVIK'],
                     on_change=update_events, args=(satObject,))
 usrLoc.initialize_location_services(locationChoice, multi=True)
 usrLoc.update_timezone(input_needed=False) # sets usrLoc.selected_tz to UTC by default
@@ -63,4 +63,8 @@ dateChoice = st.sidebar.slider(
     format = "MM/DD HH:mm")
 usrLoc.initialize_time_services(dateChoice)
 
+# 4. Update minimum elevation above horizon
+satObject.get_min_elevation()
+
+# 5. Display results
 get_results(locationChoice, dateChoice, usrLoc, satObject)
