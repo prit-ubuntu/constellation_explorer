@@ -9,6 +9,15 @@ from skyfield.timelib import Time as SkyfieldTime
 import constellation_configs as cc
 from constellation_utils import TransitEvent
 from sgp4 import exporter
+import requests
+import html_to_json
+import json
+import re
+from datetime import datetime as dt
+import plotly.express as px
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+
 
 
 NUM_TRACK = 500
@@ -211,11 +220,10 @@ class Satellite(EarthSatellite):
         Prints results summary for selected satellite.
         '''
         tle_epoch = self.satrec_object.epoch.utc_strftime(DT_FORMAT)
-        sat_name = self.satrec_object.name
-        st.info(f"Showing results for: {sat_name} | NORAD ID: {self.satrec_object.model.satnum} | TLE Epoch: {tle_epoch} UTC")
+        st.info(f"Showing results for: {self.satrec_object.name} | NORAD ID: {self.satrec_object.model.satnum} | TLE Epoch: {tle_epoch} UTC")
         objClassification = {"U": "Unclassified", "S": "Secret", "C": "Classified"}
 
-        tab1, tab2, tab3, tab4 = st.tabs(["Mean Elements", "Identifier Info", "TLE", "Propagation Status"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Mean Elements", "Identifier Info", "TLE", "Propagation Status", "Satellite Orbital Trends"])
         with tab1:
             col1, col2, col3, col4, col5 = st.columns([1,1,1,1,1])
             altitude = (self.satrec_object.model.am - 1) * self.satrec_object.model.radiusearthkm
@@ -228,7 +236,7 @@ class Satellite(EarthSatellite):
             col1, col2, col3, col4 = st.columns([1,1,2,1.5])
             col1.metric("NORAD ID:", self.satrec_object.model.satnum)
             col2.metric("Launch Date:", f"'{self.satrec_object.model.intldesg[0:2]}")
-            col3.metric("Classicification:", objClassification[self.satrec_object.model.classification])
+            col3.metric("Classification:", objClassification[self.satrec_object.model.classification])
             col4.metric("International Designator:", self.satrec_object.model.intldesg)
         with tab3:
             ts = load.timescale()
@@ -244,8 +252,97 @@ class Satellite(EarthSatellite):
         with tab4:
             col1, col2 = st.columns([1,1])
             col1.metric("Propagation error code:", f'{cc.ERROR_CODES[str(self.satrec_object.model.error)]:.25s}')
-        
+        with tab5:
+            try:
+                fig = self.get_orbital_trends()
+                st.plotly_chart(fig, theme="streamlit")
+            except Exception as e:
+                print(f'Encountered an error while querying celes trek: {e}, only showing link, no plot.')
+                celes_request = f"http://celestrak.org/NORAD/elements/graph-altitude.php?CATNR={self.satrec_object.model.satnum}"
+                st.write(f"See historical mean elements on [Celestrak]({celes_request}).")
         return None
+    
+    def get_orbital_trends(self, use_only_altitude = False):
+        
+        if use_only_altitude:
+            # columns = ['Date', 'Apogee', 'Perigee', 'Eccentricity']
+            celes_request = f"http://celestrak.org/NORAD/elements/graph-altitude.php?CATNR={self.satrec_object.model.satnum}"
+        else:
+            # columns = ['Date', 'RAAN', 'Inclination', 'Arg of Perigee', 'SMA', 'Eccentricity']
+            celes_request = f"http://celestrak.org/NORAD/elements/graph-orbit-data.php?CATNR={self.satrec_object.model.satnum}"
+
+        resp = requests.get(celes_request)
+        output_json = html_to_json.convert(resp.text)
+
+        if DEBUG:
+            with open(f'{self.satrec_object.model.satnum}_plotphp_req.json', 'w') as f:
+                f.write(json.dumps(output_json, indent=1))
+
+        plot_str = output_json["html"][0]["body"][0]["script"][0]["_value"]
+        only_comm = plot_str.split('var plotData = \"')[1].split('|\";')[0]
+        splt_comm = re.split(r'\|', only_comm)
+        table = [re.split(r',', row_item) for row_item in splt_comm]
+        columns = table[0]
+        json_obj = {}
+        dt_vec = []
+        
+        for idx, col in enumerate(columns):
+            if col == "Date":
+                format_str = "%Y-%m-%dT%H:%M:%S.%f"
+                dt_vec = [dt.strptime(datapoint[idx],format_str) for datapoint in table[1:]]
+                json_obj[col] = [datapoint[idx] for datapoint in table[1:]]
+            else:
+                json_obj[col] = [float(datapoint[idx]) for datapoint in table[1:]]
+        
+        df_hist = pd.DataFrame(json_obj)
+
+        if DEBUG:
+            with open(f'{self.satrec_object.model.satnum}_plotphp_js.json', 'w') as f:
+                f.write(json.dumps(json_obj, indent=1))
+            st.dataframe(df_hist, use_container_width=True)
+        
+        fig1 = go.Figure()
+        fig1.update_xaxes(rangeslider_visible=True, rangeselector=dict(buttons=list([
+                            dict(count=1, label='1m', step='month', stepmode='backward'),
+                            dict(count=6, label='6m', step='month', stepmode='backward'),
+                            dict(count=1, label='YTD', step='year', stepmode='todate'),
+                            dict(count=1, label='1y', step='year', stepmode='backward'),
+                            dict(step='all')])))
+
+        if use_only_altitude:
+            # columns = ['Date', 'Apogee', 'Perigee', 'Eccentricity']
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['Apogee'], name='Apogee (km)', mode='lines'))
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['Perigee'], name='Perigee (km)', mode='lines'))
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['Eccentricity'], name='Eccentricity', yaxis="y3", hovertemplate = '%{y:.4e}'))
+            fig1.update_layout(
+                xaxis  = {'title': 'Date'},
+                yaxis  = {'title': 'Altitude (km)', 'autoshift': True},
+                yaxis3 = {'title': 'Eccentricity', 'overlaying': 'y', 'side': 'right', 'autoshift': True},
+                hovermode = "x unified",
+                legend = {'orientation' : 'h', 'xanchor':'right', 'x': 1, 'yanchor': 'bottom', 'y': 1}, 
+                title_text=f"{self.satrec_object.name} | NORAD ID: {self.satrec_object.model.satnum}")
+        else:
+            # columns = ['Date', 'RAAN', 'Inclination', 'Arg of Perigee', 'SMA', 'Eccentricity']
+            # https://plotly.com/python/multiple-axes/#shift-axes-by-a-specific-number-of-pixels 
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['RAAN'], name='RAAN (deg)', mode='lines'))
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['Inclination'], name='Inclination (deg)', mode='lines', yaxis="y2"))
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['Eccentricity'], name='Eccentricity', hovertemplate = '%{y:.4e}', yaxis="y3"))
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['SMA'], name='Sem-major Axis Altitude (km)', mode='lines', yaxis="y4"))
+            fig1.add_trace(go.Scatter(x = df_hist['Date'], y = df_hist['Arg of Perigee'], name='Argument of Perigee (deg)', mode='lines', yaxis="y5"))
+            fig1.update_layout( 
+                # xaxis = {'title': 'Date', 'domain': [0.25, 0.9], 'tickformat' : '%Y-%m-%dT%H:%M:%SZ'},
+                xaxis = {'title': 'Date', 'domain': [0.25, 0.8]},
+                yaxis  = {'title': {'text': 'RAAN (deg)', 'standoff': 1}, 'side': 'left', 'autoshift': True},
+                yaxis2 = {'title': {'text': 'Inclination (deg)', 'standoff': 1}, 'overlaying': 'y', 'anchor': 'free', 'autoshift': True, 'position': 0.13},
+                yaxis3 = {'title': {'text': 'Eccentricity', 'standoff': 15} , 'overlaying': 'y', 'side': 'right', 'position': 0.99, 'autoshift': True},
+                yaxis4 = {'title': {'text': 'SMA (km)', 'standoff': 0}, 'overlaying': 'y',  'side': 'right', 'autoshift': True, 'autorange': True},
+                yaxis5 = {'title': {'text': 'Argument of Perigee (deg)', 'standoff': 18} , 'overlaying': 'y', 'position': 0.01, 'anchor': 'free', 'autoshift': True},
+                hovermode = 'x unified',
+                legend = {'orientation' : 'h', 'xanchor': 'right', 'x': 1, 'yanchor': 'bottom', 'y': -1},
+                title_text=f"{self.satrec_object.name} | NORAD ID: {self.satrec_object.model.satnum}")
+        
+        st.caption(f"Showing {len(table)} historical mean elements from [Celestrak]({celes_request}).")
+        return fig1
 
     def get_location_df(self, usrLoc):
 
@@ -303,7 +400,7 @@ class Satellite(EarthSatellite):
                 
                 r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_groundtracks, layer_locations], tooltip={"text":"{epoch}"})
                 st.pydeck_chart(r)
-                                
+
                 with st.expander("See point coloring legend:"):
                     legen_str = ''' 1. Illumination Status: Yellow = Sunlit | Purple = Eclipsed
                                 \n 2. Orbit Direction: Green = Orbit Start | Red = Orbit End
