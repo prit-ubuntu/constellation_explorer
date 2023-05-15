@@ -341,7 +341,8 @@ class Satellite(EarthSatellite):
                 legend = {'orientation' : 'h', 'xanchor': 'right', 'x': 1, 'yanchor': 'bottom', 'y': -1},
                 title_text=f"{self.satrec_object.name} | NORAD ID: {self.satrec_object.model.satnum}")
         
-        st.caption(f"Showing {len(table)} historical mean elements from [Celestrak]({celes_request}).")
+        st.caption(f"Showing {len(table)} historical mean elements from [Celestrak]({celes_request}) "
+                    f"between {df_hist['Date'][df_hist.index[0]]} and {df_hist['Date'][df_hist.index[-1]]} UTC.")
         return fig1
 
     def get_location_df(self, usrLoc):
