@@ -88,6 +88,7 @@ class TransitEvent():
 
     def to_dict(self, tz):
         # utility for converting object into reportable data in given tz
+        
         dict_ret = {
             'LOCATION': self.loc_name,
             'RISE': self.rise.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
