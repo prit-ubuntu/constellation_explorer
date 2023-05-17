@@ -347,7 +347,8 @@ class SatConstellation(object):
                                     hover_data={'ASSET':True, "RISE": False, "SET": False, 
                                     'RISE_AZIMUTH':':.2f', 'SET_AZIMUTH':':.2f', 'DURATION (sec)':':.2f'})
                     fig.update_yaxes(autorange="reversed")
-                    st.plotly_chart(fig, theme="streamlit")
+                    # BUGGY - NEED TO RESOLVE
+                    # st.plotly_chart(fig, theme="streamlit")
                 elif type == "GROUND_TRACKS":
                     # plot ground tracks of transits
                     st.caption(f"Showing {NUM_TRACK} points for each ground track from transits over {usrLoc.selected_loc}.")
