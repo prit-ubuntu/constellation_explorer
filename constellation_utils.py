@@ -89,6 +89,10 @@ class TransitEvent():
     def to_dict(self, tz):
         # utility for converting object into reportable data in given tz
         
+        self.rise.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S')
+        self.culminate.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S')
+        self.set.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S')
+
         dict_ret = {
             'LOCATION': self.loc_name,
             'RISE': self.rise.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
@@ -347,7 +351,8 @@ class SatConstellation(object):
                                     hover_data={'ASSET':True, "RISE": False, "SET": False, 
                                     'RISE_AZIMUTH':':.2f', 'SET_AZIMUTH':':.2f', 'DURATION (sec)':':.2f'})
                     fig.update_yaxes(autorange="reversed")
-                    st.plotly_chart(fig, theme="streamlit")
+                    print(fig)
+                    # st.plotly_chart(fig, theme="streamlit")
                 elif type == "GROUND_TRACKS":
                     # plot ground tracks of transits
                     st.caption(f"Showing {NUM_TRACK} points for each ground track from transits over {usrLoc.selected_loc}.")
