@@ -153,6 +153,7 @@ class SatConstellation(object):
     '''
     def __init__(self, constellation):
 
+        
         if constellation in CONSTELLATIONS:
             self.constellation = constellation
             self.min_elevation = cc.CONFIGS[constellation]['_MINELEVATIONS']
@@ -161,6 +162,13 @@ class SatConstellation(object):
             self.map_zoom = cc.CONFIGS[constellation]['_ZOOMLEVELS']
         else:
             st.error('Need a constellation to begin!')
+
+        help_str = "The angle of a satellite measured upwards from the observer's horizon. Thus, an object on the horizon has an elevation of 0° and one directly overhead has an elevation of 90°."
+        self.min_elevation = st.sidebar.slider("Restrict transits above horizon (degrees):", min_value=0, max_value=80, value=30, step=10, help=help_str)
+        self.radius_size = st.sidebar.slider("Point radius size:", min_value=500, max_value=6000, value=1000, step=300)
+        
+        global MAX_POINTS
+        MAX_POINTS = st.sidebar.slider("Max number of points on plot:", min_value=1000, max_value=10000, value=3000, step=1000)
 
         self.initialized = False
         self.num_passes = 0
