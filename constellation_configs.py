@@ -1,7 +1,7 @@
 # Defines the zoom levels for ground tracks
 MAXZOOM = 5.5
 MIDZOOM = 6.5
-MINZOOM = 7
+MINZOOM = 6
 # Defines the radius size for ground tracks
 MINRAD = 600
 MIDRAD = 700
@@ -72,6 +72,12 @@ CONFIGS = {
                     '_MAXALTITUDES'  : 800,
                     '_RADIUSLEVELS'  : MIDRAD,
                     '_ZOOMLEVELS'    : MIDZOOM      
+                },
+    'CUSTOM':    {   
+                    '_MINELEVATIONS' : MINELEV,
+                    '_MAXALTITUDES'  : 600,
+                    '_RADIUSLEVELS'  : MINRAD,
+                    '_ZOOMLEVELS'    : MINZOOM      
                 },
 }
 

@@ -5,15 +5,19 @@ import numpy as np
 import constellation_configs as cc
 import pydeck as pdk
 import plotly.express as px
+from io import StringIO
+import random
 
 # Names of all constellations in config file
 CONSTELLATIONS = list(cc.CONFIGS.keys())
 _URL = 'http://celestrak.com/NORAD/elements/'
+DT_FORMAT = '%b %d, %Y %H:%M:%S'
 
 DEBUG_CACHE = False
 DEBUG = False
 DEBUG_DATA = False
 VERBOSE = False
+MULTI_COLOR = True
 
 NUM_TRACK = 50
 KM_BIN_SIZE = 100
@@ -35,6 +39,7 @@ class TransitEvent():
         self.geo_position = None # array of geocentric [x,y,z] (km) from rise to set 
         self.latlon = None # array of [lat,lon] (deg)
         self.azaltrange = None # array of [azimuth (deg), elevation (deg), range (km)] 
+        self.time_list = None # list of times for display
 
         if isinstance(satrecObj, EarthSatellite):
             self.satrec = satrecObj
@@ -70,33 +75,44 @@ class TransitEvent():
         self.geo_position = geo_pos
         self.latlon = lat_lon
         self.azaltrange = azaltrange
+        self.time_list = ts_range
         res = True
         return res
 
     def is_populated(self):
         status = False
-        check_latlon = self.latlon.shape == (2, NUM_TRACK)
-        check_azaltrange = self.azaltrange.shape == (2, NUM_TRACK)
-        check_position = self.geo_position.shape == (3, NUM_TRACK)
+        check_latlon = self.latlon.shape == (NUM_TRACK, 2)
+        check_azaltrange = self.azaltrange.shape == (NUM_TRACK, 3)
+        check_position = self.geo_position.shape == (NUM_TRACK, 3)
+        check_time_nodes = len(self.time_list) == NUM_TRACK
 
-        if check_latlon and check_azaltrange and check_position:
+        if check_time_nodes and check_latlon and check_azaltrange and check_position:
             status = True
         else:
-            if DEBUG: 
+            if DEBUG:
                 print(f"Ephemeris not populated for event: {self}")
         return status
 
+    def get_printable_times(self, format=DT_FORMAT):
+        '''
+        returns a list of time strings for all state vector epochs
+        '''
+        return [time.utc_strftime(format) for time in self.time_list]
+
     def to_dict(self, tz):
         # utility for converting object into reportable data in given tz
-        
+        rise_az, set_az = 0, 0 # use defaults for safety and bring up any errors
+        if self.is_populated():
+            rise_az, set_az = self.azaltrange[0][0], self.azaltrange[-1][0]
+
         dict_ret = {
             'LOCATION': self.loc_name,
             'RISE': self.rise.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'CULMINATE': self.culminate.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'SET': self.set.utc_datetime().astimezone(tz).strftime('%b %d, %Y %H:%M:%S'),
             'ASSET': self.asset,
-            'RISE_AZIMUTH': self.azaltrange[0][0],
-            'SET_AZIMUTH': self.azaltrange[-1][0],
+            'RISE_AZIMUTH': rise_az,
+            'SET_AZIMUTH': set_az,
             'LAUNCH_YEAR': f"'{self.satrec.model.intldesg[0:2]}"
         }
  
@@ -164,11 +180,11 @@ class SatConstellation(object):
             st.error('Need a constellation to begin!')
 
         help_str = "The angle of a satellite measured upwards from the observer's horizon. Thus, an object on the horizon has an elevation of 0° and one directly overhead has an elevation of 90°."
-        self.min_elevation = st.sidebar.slider("Restrict transits above horizon (degrees):", min_value=0, max_value=80, value=30, step=10, help=help_str)
+        self.min_elevation = st.sidebar.slider("Restrict transits above horizon (degrees):", min_value=0, max_value=80, value=70, step=10, help=help_str)
         self.radius_size = st.sidebar.slider("Point radius size:", min_value=500, max_value=6000, value=1000, step=300)
         
         global MAX_POINTS
-        MAX_POINTS = st.sidebar.slider("Max number of points on plot:", min_value=1000, max_value=10000, value=3000, step=1000)
+        MAX_POINTS = st.sidebar.slider("Max number of points on plot:", min_value=1000, max_value=10000, value=6000, step=1000)
 
         self.initialized = False
         self.num_passes = 0
@@ -188,6 +204,16 @@ class SatConstellation(object):
         see more at: https://rhodesmill.org/skyfield/api-satellites.html#skyfield.sgp4lib.EarthSatellite 
         '''
 
+        def load_file():
+            uploaded_file = st.file_uploader("Choose a valid TLE file (*.txt)")
+            if uploaded_file is not None:
+                sats = load.tle_file(uploaded_file.name)
+
+            if len(sats) > 0:
+                return sats
+            else:
+                raise Exception("BAD_FILE_READ_ERROR")
+
         def query_url():
             # check that desired constellation is valid
             if self.constellation.upper() not in CONSTELLATIONS:
@@ -202,19 +228,38 @@ class SatConstellation(object):
                 st.error('Failed to get constellation data!')
         
         member_satellites = []
-        satellites = query_url()
 
         # only add satellite with valid propagation
-        for sat in satellites:
-            alt = (sat.model.am - 1) * sat.model.radiusearthkm
-            # will need to include this sanity check for adding satellite objects
-            if sat.model.error == 0 and alt > 0 and alt < 2*self.max_altitude:
-                member_satellites.append(SatelliteMember(sat))
+        try:
+            if self.constellation != "CUSTOM":
+                satellites = query_url()
+                self.initialized = True
             else:
-                if DEBUG: 
-                    print(f'Did not add sat with error code: {cc.ERROR_CODES[str(sat.model.error)]}, dropping sat...')
+                try:
+                    satellites = load_file()
+                    count = 1
+                    if satellites:
+                        for sat in satellites:
+                            if not sat.name and sat.model.satnum < 99000 and sat.model.satnum > 87000:
+                                sat.name = f"ANALYST OBJECT-{str(sat.model.satnum)[-2:]}"
+                            elif not sat.name:
+                                sat.name = f"ANALYST OBJECT-{count}"
+                            count += 1
+                        self.initialized = True                        
+                except Exception as e:
+                    print("Problem reading the file....")
+            
+            # filter satellites for deorbitted sats just in case
+            for sat in satellites:
+                alt = (sat.model.am - 1) * sat.model.radiusearthkm
+                # will need to include this sanity check for adding satellite objects
+                if sat.model.error == 0 and alt > 0 and alt < 2*self.max_altitude:
+                    member_satellites.append(SatelliteMember(sat))
+                else:
+                    print(f'Did not add sat: {sat} with error code: {cc.ERROR_CODES[str(sat.model.error)]}, dropping sat...')
+        except Exception as e:
+            st.error("Please select a valid TLE file to continue!")
 
-        self.initialized = True
         return member_satellites
 
     def generatePasses(self, usrLocObject):
@@ -334,34 +379,45 @@ class SatConstellation(object):
                     tz_info_str = f'''All times reported are in local timezone of {usrLoc.selected_tz}.'''
                     st.info(tz_info_str, icon="ℹ️")
 
-                    gTrack_info_str = f'''Limiting plotting to 6000 points total. 
+                    gTrack_info_str = f'''Limiting plotting to {MAX_POINTS} points total. 
                                        These points are divided amongst number of transits equally. '''
                     st.info(gTrack_info_str, icon="ℹ️")
 
         def display_transits(types):
             
-            for type in types:            
+            for type in types:        
                 if type == "TABLE":
+                    ele_info_str = f'''Showing transits over  {self.min_elevation}° of elevation above 
+                                the {usrLoc.selected_loc} horizon (all times in {usrLoc.selected_tz} timezone).'''
+                    st.caption(ele_info_str)
                     # print tabular schedule
                     transit_schedule = self.getTransits(purpose="TO_PRINT")
                     # 'ASSET', 'RISE', 'SET', 'RISE_AZIMUTH', 'SET_AZIMUTH'
                     st.dataframe(transit_schedule, use_container_width=True)
                 elif type == "TIMELINE":
-                    # plot timeline view
-                    sked_for_tl = self.getTransits(purpose="FOR_TIMELINE")
-                    sked_for_tl['Location'] = f"{usrLoc.selected_loc}"
-                    # fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y='LAUNCH_YEAR')
-                    fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y = "Location", color='ASSET', 
-                                    hover_data={'ASSET':True, "RISE": False, "SET": False, 
-                                    'RISE_AZIMUTH':':.2f', 'SET_AZIMUTH':':.2f', 'DURATION (sec)':':.2f'})
-                    fig.update_yaxes(autorange="reversed")
-                    # BUGGY - NEED TO RESOLVE
-                    # st.plotly_chart(fig, theme="streamlit")
+                    try:
+                        # plot timeline view
+                        sked_for_tl = self.getTransits(purpose="FOR_TIMELINE")
+                        sked_for_tl['Location'] = f"{usrLoc.selected_loc}"
+                        # fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y='LAUNCH_YEAR')
+                        fig = px.timeline(sked_for_tl, x_start="RISE", x_end="SET", y = "Location", color='ASSET', 
+                                        hover_data={'ASSET':True, "RISE": False, "SET": False, 
+                                        'RISE_AZIMUTH':':.2f', 'SET_AZIMUTH':':.2f', 'DURATION (sec)':':.2f'})
+                        fig.update_yaxes(autorange="reversed")
+                        # BUGGY - NEED TO RESOLVEd
+                        st.plotly_chart(fig, theme="streamlit")
+                    except Exception as e:
+                        print("Encountered an exception while displaying timeline: ", e)
+                        st.warning("Sorry, something went wrong, could not display timeline.")
                 elif type == "GROUND_TRACKS":
                     # plot ground tracks of transits
-                    st.caption(f"Showing {NUM_TRACK} points for each ground track from transits over {usrLoc.selected_loc}.")
-                    gTrack = self.generateGroundTracks()
-                    st.pydeck_chart(gTrack)
+                    try:
+                        st.caption(f"Showing {NUM_TRACK} points for each ground track from transits for {self.constellation} satellite constellation over {usrLoc.selected_loc}.")
+                        gTrack = self.generateGroundTracks()
+                        st.pydeck_chart(gTrack)
+                    except Exception as e:
+                        print("Encountered an exception while displaying ground tracks: ", e)
+                        st.warning("Sorry, something went wrong.")
                 else:
                     raise ValueError('cant find my purpose!!')
             return None
@@ -372,11 +428,8 @@ class SatConstellation(object):
 
         with tab1:
             if self.num_passes > 0:
-                ele_info_str = f'''Showing transits over  {self.min_elevation}° of elevation above 
-                                the horizon ({usrLoc.selected_tz} time).'''
-                st.caption(ele_info_str)
                 # display elements in this order
-                display_transits(types=["TIMELINE","GROUND_TRACKS","TABLE"])
+                display_transits(types=["GROUND_TRACKS","TABLE","TIMELINE"])
                 display_info_tab()
             else:
                 st.caption('No transists found in the given timeframe.')
@@ -415,19 +468,36 @@ class SatConstellation(object):
         return df
 
     def generateGroundTracks(self):
-        lat_list, lon_list, asset_list = [], [], []
+        lat_list, lon_list, asset_list, label_list, color_list = [], [], [], [], []
         for sat in self.satellites:
+            rand_r, rand_g, rand_b = random.randint(0,255), random.randint(0,255), random.randint(0,255)
             for event in sat.events:
-                if event.is_populated:
-                    for node in event.latlon:
+                if event.is_populated():
+                    time_nodes = event.get_printable_times()
+                    for idx, node in enumerate(event.latlon):
                         lat_list.append(node[0])
                         lon_list.append(node[1])
+                        azimuth = round(event.azaltrange[idx][0],2)
+                        elevation = round(event.azaltrange[idx][1],2)
                         asset_list.append(event.asset)
+                        label_dp = f'''{event.asset} ({sat.satrec_object.model.satnum}) 
+                                        Epoch: {time_nodes[idx]}
+                                        Alt/Azm: {elevation}/{azimuth}
+                                        Lat/Lon: {round(node[0],2)}/{round(node[1],2)}'''
+                        label_list.append(label_dp)
+                        if "FM-" in event.asset:
+                            color_list.append([0, 255, 0])
+                        else:
+                            if MULTI_COLOR:
+                                color_list.append([rand_r, rand_g, rand_b]) # plot different colors
+                            else:
+                                color_list.append([255, 255, 255])
                 else:
+                    print(f"did not add this event: {event}")
                     if DEBUG:
                         print(f"Could not add event for ground tracks: {event}")
-
-        chart_data = pd.DataFrame({"lat": lat_list, "lon": lon_list, "asset": asset_list})
+                
+        chart_data = pd.DataFrame({"epoch": label_list, "lat": lat_list, "lon": lon_list, "asset": asset_list, "colors": color_list})
 
         # Simple implementation
         # st.map(chart_data)
@@ -436,9 +506,12 @@ class SatConstellation(object):
                                   zoom=self.map_zoom, pitch=0)
 
         layer_1 = pdk.Layer('ScatterplotLayer', data=chart_data, get_position='[lon, lat]',
-                           get_color=[150, 249, 123], get_radius=self.radius_size, pickable=True, auto_highlight=True)
+                           get_color='colors', get_radius=self.radius_size, 
+                           pickable=True, auto_highlight=True,
+                           opacity=0.4, stroked=True,
+                           radius_min_pixels=1, radius_max_pixels=100)
 
-        r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1])
+        r = pdk.Deck(map_style=None, initial_view_state=viewState, layers=[layer_1], tooltip={"text":"{epoch}"})
         return r
 
     def getDataPDtoPlot(self):
@@ -476,13 +549,13 @@ class SatConstellation(object):
     def getLaunchDist(self):
         # Histogram of satelites launched per year
         df_to_plot = self.stats_df
-        fig = px.histogram(df_to_plot, x="Launch Year", marginal="rug", color="Launch Year", title="# of Satellites Launched",hover_data=df_to_plot.columns) 
+        fig = px.histogram(df_to_plot, x="Launch Year", marginal="rug", color="Launch Year", title=f"{self.constellation} - No. of Satellites Launched",hover_data=df_to_plot.columns) 
         return fig
 
     def getSMADist(self):
         # "Mean Semi-major Axis (km)"
         df_to_plot = self.stats_df
-        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", title="Altitude Distribution (km)",hover_data=df_to_plot.columns)        
+        fig = px.histogram(df_to_plot, x="meanSMA (km)", color="Launch Year", marginal="rug", title=f"{self.constellation} - Altitude Distribution (km)",hover_data=df_to_plot.columns)        
         # fig.update_layout(xaxis_range=[0, max(a_mean_list)])
         return fig
 
@@ -490,7 +563,7 @@ class SatConstellation(object):
         df_to_plot = self.stats_df
         # num_bins = int((max(inc_list) - min(inc_list)) / INC_BIN_SIZE)
         # "Inclination (deg)"
-        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", title="Inclination Distribution (degrees)", hover_data=df_to_plot.columns)
+        fig = px.histogram(df_to_plot, x="incl (deg)", color="Launch Year", marginal="rug", title=f"{self.constellation} - Inclination Distribution (degrees)", hover_data=df_to_plot.columns)
         return fig
 
 # Complex pydeck plot implementation
