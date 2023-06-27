@@ -23,7 +23,7 @@ st.markdown(
     ### Creators
     [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/) | Porfolio: [https://pritc.space/](https://pritc.space/)
 
-    Celestial Insights LLC  |  [Contact Us](pritchovatiya@celestialin.com) 📥 📥 📥 
+    Celestial Insights LLC  |  Contact Us: [pritchovatiya@celestialin.com](pritchovatiya@celestialin.com) 📥 📥 📥 
 
     All rights reserved.
     """
