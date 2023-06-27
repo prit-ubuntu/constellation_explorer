@@ -20,8 +20,11 @@ st.markdown(
     - Skyfield API uses [sgp4](https://pypi.org/project/sgp4/) library to propagate TLEs.
     - UI/UX python package: Check out [streamlit.io](https://streamlit.io).
 
-    ### About the creator
-    This tool was created by [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/).
-    For more projects, visit his [portfolio website](https://pritc.space/). 
+    ### Creators
+    [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/) | Porfolio: [https://pritc.space/](https://pritc.space/)
+
+    Celestial Insights LLC  |  [Contact Us](pritchovatiya@celestialin.com) 📥 📥 📥 
+
+    All rights reserved.
     """
 )

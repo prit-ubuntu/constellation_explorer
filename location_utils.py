@@ -35,7 +35,9 @@ LOCATIONS = {'BOULDER': (40.015, -105.27),
              'WEST LAFAYETTE': (40.43, -86.91), 
              'ANN ARBOR': (42.28, -83.74),
              'LITTLE ROCK': (34.74, -92.28),
-             'CUSTOM LOCATION': (10.00, 10.00)
+             'TROLL': (-72.0114, -2.5350),
+             'SVALBARD': (77.8750, -20.9752),
+            #  'CUSTOM LOCATION': (10.00, 10.00),
             }
 
 class UserLocation(object):
