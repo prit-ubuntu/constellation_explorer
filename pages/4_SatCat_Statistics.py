@@ -77,9 +77,9 @@ def plot_distributions(df, singleGroupChoices, compositeGroupChoices, year_limit
             for choice in singleGroupChoices:
                 df_objecttype = df.copy()
                 df_dict = df_objecttype[singular_groupings[choice]].value_counts().to_dict()
-                df_objecttype_plot = pd.DataFrame(data = {singular_groupings[choice]: df_dict.keys(), 'SATELLITES LAUNCHED': df_dict.values()})
+                df_objecttype_plot = pd.DataFrame(data = {singular_groupings[choice]: df_dict.keys(), 'OBJECT COUNT': df_dict.values()})
                 title_str = f"Object Counts by {choice} {subtitle_str}"
-                fig = px.pie(df_objecttype_plot, values=df_objecttype_plot['SATELLITES LAUNCHED'], names=singular_groupings[choice], title=title_str)
+                fig = px.pie(df_objecttype_plot, values=df_objecttype_plot['OBJECT COUNT'], names=singular_groupings[choice], title=title_str)
                 fig.update_traces(textposition='inside')
                 fig.update_layout(uniformtext_minsize=12, uniformtext_mode='hide')
                 st.plotly_chart(fig, theme="streamlit")
