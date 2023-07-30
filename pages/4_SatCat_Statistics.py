@@ -54,7 +54,7 @@ def get_data_from_spacetrack(year_limit=(2000, 2023)):
 
 def plot_distributions(df, singleGroupChoices, compositeGroupChoices, year_limit):
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Timelines", "Groupings", "Hierarchy", "Raw Data"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Timelines", "Groupings", "Hierarchical Groupings", "Raw Data"])
 
     # Histograms
     with tab1:
