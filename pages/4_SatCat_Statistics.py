@@ -135,7 +135,7 @@ sunburst_groupings = {
 st.sidebar.write('Begin here 👇')
 year_limit = st.sidebar.slider("Select time range:", min_value=1957, max_value=2023, value=tuple([2010,2023]), step=1)
 groupChoice = st.sidebar.multiselect('Groupings by:', singular_groupings.keys(), list(singular_groupings.keys())[0:3])
-hierarchyChoice = st.sidebar.multiselect('Hierachical groupings by:', sunburst_groupings.keys(), list(sunburst_groupings.keys()))
+hierarchyChoice = st.sidebar.multiselect('Hierachical groupings by:', sunburst_groupings.keys(), list(sunburst_groupings.keys())[0:3])
 
 # Query data from Spacetrack and display stats
 with st.spinner("Retrieving data from Spacetrack..."):
