@@ -92,6 +92,7 @@ def plot_distributions(df, singleGroupChoices, compositeGroupChoices, year_limit
             for group in compositeGroupChoices:
                 title_str = f"{group} {subtitle_str}"
                 fig = px.sunburst(df, path=sunburst_groupings[group], title=title_str)
+                fig.update_traces(textinfo="label+percent parent")
                 st.plotly_chart(fig, theme="streamlit")
                 if group == "Objects Overview":
                     with st.expander("How do I interpret this?"):
