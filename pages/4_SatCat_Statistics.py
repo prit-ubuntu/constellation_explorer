@@ -121,7 +121,9 @@ singular_groupings = {
 
 # Hierarchical groupings
 sunburst_groupings = {
-    "Objects Overview": ['COUNTRY', 'DECAY_STATUS', 'OBJECT_TYPE'],
+    "Country by Decay Status by Object Type": ['COUNTRY', 'DECAY_STATUS', 'OBJECT_TYPE'],
+    "Decay Status by Object Type by Country": ['DECAY_STATUS', 'OBJECT_TYPE', 'COUNTRY'],
+    "Object Type by Country by Decay Status": ['OBJECT_TYPE', 'COUNTRY', 'DECAY_STATUS'],
     "Object Type by Country" : ['OBJECT_TYPE', 'COUNTRY'],
     "Decay Status by Country" : ['DECAY_STATUS', 'COUNTRY'],
     "Decay Status by Object Type": ['DECAY_STATUS', 'OBJECT_TYPE']
