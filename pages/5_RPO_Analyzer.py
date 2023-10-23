@@ -117,12 +117,15 @@ def compare_sats(sat1df, sat2df):
 st.sidebar.write('Begin here 👇')
 
 # 1. Select a group of satellites
-@st.cache(ttl=86400)
+@st.cache_resource(ttl=21600)
+def query_sats(sat_group):
+    _URL = 'http://celestrak.com/NORAD/elements/'
+    url = f'{_URL}{cc.TLE_GROUP_URL[sat_group]}.txt'
+    return load.tle_file(url)
+
 def get_satellites():
     satellite_group_type = st.sidebar.selectbox('Select a satellite group:', tuple(cc.TLE_GROUP_URL))
-    _URL = 'http://celestrak.com/NORAD/elements/'
-    url = f'{_URL}{cc.TLE_GROUP_URL[satellite_group_type]}.txt'
-    satellites = load.tle_file(url)
+    satellites = query_sats(satellite_group_type)
     return satellites
 
 satellites = get_satellites()
