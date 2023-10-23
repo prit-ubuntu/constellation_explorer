@@ -75,7 +75,7 @@ CONFIGS = {
                 },
     'CUSTOM':    {   
                     '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 600,
+                    '_MAXALTITUDES'  : 600000,
                     '_RADIUSLEVELS'  : MINRAD,
                     '_ZOOMLEVELS'    : MINZOOM      
                 },
@@ -92,18 +92,14 @@ ERROR_CODES = {
 }
 
 TLE_GROUP_URL = {
+    
     "Space Stations": "stations",
     "Brightest Satellites": "visual",
-    "Russian ASAT Test Debris (COSMOS 1408)": "1982-092",
-    "Chinese ASAT Test Debris (FENGYUN 1C)": "1999-025",
-    "IRIDIUM 33 Debris" : "iridium-33-debris",
-    "COSMOS 2251 Debris" : "cosmos-2251-debris",
     "Weather Satellites": "weather", 
     "Disaster Monitoring": "dmc", 
     "Search & Rescue (SARSAT)": "sarsat",
     "Tracking and Data Relay Satellite System (TDRSS)" : "tdrss", 
     "CubeSats": "cubesat",
-    "Molniya": "molniya", 
     "GPS Operational": "gps-ops", 
     "Spire": "spire", 
     "Planet": "planet", 
@@ -114,7 +110,8 @@ TLE_GROUP_URL = {
     "Beidou": "beidou",
     "GNSS": "gnss", 
     "Iridium": "iridium", 
-    "NOAA": "noaa"
+    "NOAA": "noaa",
+    "Active": "active"
 }
 
 

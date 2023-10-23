@@ -59,6 +59,9 @@ class StateVector(object):
         x, y, z = self.geoposition.position.km[0], self.geoposition.position.km[1], self.geoposition.position.km[2]
         return [x, y, z]
 
+    def gcrsVelocity(self):
+        vx, vy, vz = self.geoposition.velocity.km_per_s[0], self.geoposition.velocity.km_per_s[1], self.geoposition.velocity.km_per_s[2]
+        return [vx, vy, vz]
 
 class SatelliteEphemeris(StateVector):
     '''
@@ -121,13 +124,17 @@ class SatelliteEphemeris(StateVector):
         color_list[-NUM_TRACK_ENDPOINTS:] = [red_for_end] * NUM_TRACK_ENDPOINTS
         return color_list
     
-    def __getPosList(self):
+    def __getStateList(self):
         '''
-        returns a tuple of (x, y, z GCRS pos in km) for all state vectors
+        returns a tuple of (x, y, z, vx, vy, vz GCRS pos in km / km/s) for all state vectors
         '''
+        # get position
         xyz_list = [vector.gcrsPosition() for vector in self.state_vectors]
         x_pos, y_pos, z_pos = map(list, zip(*xyz_list))
-        return tuple([x_pos, y_pos, z_pos])
+        # get velocity
+        v_xyz_list = [vector.gcrsVelocity() for vector in self.state_vectors]
+        x_vel, y_vel, z_vel = map(list, zip(*v_xyz_list))
+        return tuple([x_pos, y_pos, z_pos, x_vel, y_vel, z_vel])
 
     def get_df_with_fields(self):
         '''
@@ -136,8 +143,8 @@ class SatelliteEphemeris(StateVector):
         times = self.__getTimesList()
         latlong = self.__getLatLongList()
         sunlit_colors = self.__getSunlitColorList()   
-        x_y_z = self.__getPosList() 
-        return pd.DataFrame({'epoch': times, 'lat': latlong[0], 'lon': latlong[1], 'colors': sunlit_colors, 'x': x_y_z[0], 'y': x_y_z[1], 'z': x_y_z[2]})
+        state_vector = self.__getStateList()
+        return pd.DataFrame({'epoch': times, 'lat': latlong[0], 'lon': latlong[1], 'colors': sunlit_colors, 'x': state_vector[0], 'y': state_vector[1], 'z': state_vector[2], 'vx': state_vector[3], 'vy': state_vector[4], 'vz': state_vector[5]})
 
 
 class Satellite(EarthSatellite):
@@ -149,6 +156,17 @@ class Satellite(EarthSatellite):
         self.ephemeris = None # SatelliteEphemeris object
         self.events = [] # array of transit events, filled by generatePasses
         self.min_elevation = 20 # degree above horizon for transits
+
+        ts = load.timescale()
+        t_now = ts.now()
+        days = t_now - self.satrec_object.epoch
+        tle_epoch = self.satrec_object.epoch.utc_strftime(DT_FORMAT)
+
+        self.tle_epoch_str = f"TLE Epoch: {tle_epoch} UTC"
+        self.tle_age_str = f"TLE Age: {days:.1f} days"
+
+    def get_tle_info_rpo(self):
+        return f"{self.tle_epoch_str} | {self.tle_age_str}"
 
     def get_min_elevation(self):
         help_str = "The angle of a satellite measured upwards from the observer's horizon. Thus, an object on the horizon has an elevation of 0° and one directly overhead has an elevation of 90°."
@@ -238,16 +256,13 @@ class Satellite(EarthSatellite):
             col3.metric("Classification:", objClassification[self.satrec_object.model.classification])
             col4.metric("International Designator:", self.satrec_object.model.intldesg)
         with tab3:
-            ts = load.timescale()
-            t_now = ts.now()
-            days = t_now - self.satrec_object.epoch
             line0 = self.satrec_object.name
             line1, line2 = exporter.export_tle(self.satrec_object.model)
             tle_example = f"{line0}\n{line1}\n{line2}\n"
             help_str = '''Spacing between elements might need adjustment for TLE checksums to match.
                           See [TLE Wikipedia](https://en.wikipedia.org/wiki/Two-line_element_set) for more info.
             '''
-            st.text_area(f"TLE Epoch: {tle_epoch} UTC | TLE Age (days): {days:.1f}", tle_example, disabled=True, help=help_str)
+            st.text_area(f"{self.get_tle_info_rpo()}", tle_example, disabled=True, help=help_str)
         with tab4:
             col1, col2 = st.columns([1,1])
             col1.metric("Propagation error code:", f'{cc.ERROR_CODES[str(self.satrec_object.model.error)]:.25s}')
@@ -355,6 +370,25 @@ class Satellite(EarthSatellite):
         location_colors = [yellow if is_valid_transit else white for is_valid_transit in valid_transit_list]
         df = pd.DataFrame(data = {"epoch": usrLoc.selected_loc_array, "lat": lat, "lon": lon, "colors": location_colors}) # dummy epoch column to spoof labelling in pdk.Deck call below
         return df
+
+    def results_for_rpo(self, dateChoice):
+
+        if dateChoice[1] == dateChoice[0]:
+            st.error('Please select a different stop time, start time and stop time cannot be same!')
+        else:
+            with st.spinner("Computing satellite ground tracks..."):
+                ts = load.timescale()
+                start_time = ts.from_datetime(dateChoice[0].replace(tzinfo=utc))
+                end_time = ts.from_datetime(dateChoice[1].replace(tzinfo=utc))
+                if self.__createEphemeris(start_time, end_time):
+                    df_to_plot = self.ephemeris.get_df_with_fields()
+                    if DEBUG:
+                        print(f"Plotting {len(df_to_plot.epoch)} ground tracks between " 
+                            f"{start_time.utc_strftime(DT_FORMAT)} and {end_time.utc_strftime(DT_FORMAT)}")
+                else:
+                    st.exception("Failed to generate ephemeris, can't plot ground tracks!")
+
+        return None
 
     def display_results(self, dateChoice, usrLoc):
         '''

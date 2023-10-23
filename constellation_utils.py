@@ -208,25 +208,7 @@ class SatConstellation(object):
             uploaded_file = st.file_uploader("Choose a valid TLE file (*.txt)", type = "txt")
             sats = []
             if uploaded_file is not None:
-                # bytes_data = uploaded_file.getvalue()
-                # st.write(bytes_data)
-                # To convert to a string based IO:
-                stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-                # # To read file as string:
-                string_data = stringio.read()
-                # print(string_data)
-                # load.tle_file()
-                sats = load.tle_file(string_data)
-                # with tempfile.NamedTemporaryFile() as tmp:
-                #     print("asasasaa")
-                #     tmp_name = tmp.name
-                #     print(tmp.name)
-                #     tmp.write(string_data)
-                #     print("reading-"*56)
-                #     print(tmp.read)
-                # sats = load.tle_file(tmp)
-                print(uploaded_file.name)
-                sats = load.tle_file(uploaded_file)
+                sats = load.tle_file(uploaded_file.name)
             if len(sats) > 0:
                 return sats
             else:
@@ -263,7 +245,7 @@ class SatConstellation(object):
                         elif not sat.name:
                             sat.name = f"ANALYST OBJECT-{count}"
                         count += 1
-                    self.initialized = False  # not support yet                     
+                    self.initialized = True  # not support yet                     
                 # except Exception as e:
                     # # print(f"Problem reading the file....: {e}")
                     # print("Problem reading the file....:")
@@ -277,7 +259,7 @@ class SatConstellation(object):
                 else:
                     print(f'Did not add sat: {sat} with error code: {cc.ERROR_CODES[str(sat.model.error)]}, dropping sat...')
         except Exception as e:
-            st.error("Something went horribly wrong, sorry.")
+            st.error(f"Something went horribly wrong, sorry.{e}")
 
         return member_satellites
 
