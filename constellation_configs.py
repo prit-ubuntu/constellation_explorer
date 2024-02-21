@@ -13,73 +13,72 @@ MIDELEV = 85
 MAXELEV = 87
 
 CONFIGS = {
-    'SPIRE':    {   
-                    '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 600,
-                    '_RADIUSLEVELS'  : MINRAD,
-                    '_ZOOMLEVELS'    : MINZOOM      
-                },
-    'PLANET':   {   
-                    '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 700,
-                    '_RADIUSLEVELS'  : MINRAD,
-                    '_ZOOMLEVELS'    : MINZOOM      
-                },
-    'STARLINK': {   
-                    '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 600,
-                    '_RADIUSLEVELS'  : MINRAD,
-                    '_ZOOMLEVELS'    : MINZOOM      
-                },
-    'SWARM':    {   
-                    '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 600,
-                    '_RADIUSLEVELS'  : MINRAD,
-                    '_ZOOMLEVELS'    : MINZOOM      
-                },
-    'ONEWEB':   {   
-                    '_MINELEVATIONS' : MIDELEV,
-                    '_MAXALTITUDES'  : 1200,
-                    '_RADIUSLEVELS'  : MIDRAD,
-                    '_ZOOMLEVELS'    : MIDZOOM      
-                },
-    'GALILEO':  {   
-                    '_MINELEVATIONS' : MAXELEV,
-                    '_MAXALTITUDES'  : 33000,
-                    '_RADIUSLEVELS'  : MAXRAD,
-                    '_ZOOMLEVELS'    : MAXZOOM     
-                },
-    'BEIDOU':   {   
-                    '_MINELEVATIONS' : MAXELEV,
-                    '_MAXALTITUDES'  : 21000,
-                    '_RADIUSLEVELS'  : MAXRAD,
-                    '_ZOOMLEVELS'    : MAXZOOM     
-                },
-    'GNSS':     {   
-                    '_MINELEVATIONS' : MAXELEV,
-                    '_MAXALTITUDES'  : 20000,
-                    '_RADIUSLEVELS'  : MAXRAD,
-                    '_ZOOMLEVELS'    : MAXZOOM      
-                },
-    'NOAA':     {   
-                    '_MINELEVATIONS' : MAXELEV,
-                    '_MAXALTITUDES'  : 35800,
-                    '_RADIUSLEVELS'  : MINRAD,
-                    '_ZOOMLEVELS'    : MINZOOM      
-                },
-    'IRIDIUM':  {   
-                    '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 800,
-                    '_RADIUSLEVELS'  : MIDRAD,
-                    '_ZOOMLEVELS'    : MIDZOOM      
-                },
-    'CUSTOM':    {   
-                    '_MINELEVATIONS' : MINELEV,
-                    '_MAXALTITUDES'  : 600000,
-                    '_RADIUSLEVELS'  : MINRAD,
-                    '_ZOOMLEVELS'    : MINZOOM      
-                },
-}
+    "SPIRE" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/LEMUR~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "PLANET" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/SKYSAT~~/OBJECT_NAME/FLOCK~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "SWARM" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/SPACEBEE~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "STARLINK" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/STARLINK~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "ONEWEB" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/ONEWEB~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MIDELEV,
+        "_RADIUSLEVELS"  : MIDRAD,
+        "_ZOOMLEVELS"    : MIDZOOM },
+    "GLOBALSTAR" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/GLOBALSTAR~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MIDELEV,
+        "_RADIUSLEVELS"  : MIDRAD,
+        "_ZOOMLEVELS"    : MIDZOOM },
+    "IRIDIUM" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/IRIDIUM~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "ORBCOMM" : {
+        "_URL": "/class/tle_latest/ORDINAL/1/OBJECT_NAME/ORBCOMM~~/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MIDELEV,
+        "_RADIUSLEVELS"  : MIDRAD,
+        "_ZOOMLEVELS"    : MIDZOOM },
+    "AMATUER": {
+        "_URL": "/class/tle_latest/favorites/Amateur/ORDINAL/1/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "NAVSTAR (USA)": {
+        "_URL": "/class/tle_latest/favorites/Navigation/ORDINAL/1/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MAXELEV,
+        "_RADIUSLEVELS"  : MAXRAD,
+        "_ZOOMLEVELS"    : MAXZOOM },
+    "SPECIAL INTEREST": {
+        "_URL": "/class/tle_latest/favorites/Special_Interest/ORDINAL/1/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "WEATHER": {
+        "_URL": "/class/tle_latest/favorites/Weather/ORDINAL/1/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    "VISIBLE": {
+        "_URL": "/class/tle_latest/favorites/Visible/ORDINAL/1/format/3le/orderby/NORAD_CAT_ID%20asc",
+        "_MINELEVATIONS" : MINELEV,
+        "_RADIUSLEVELS"  : MINRAD,
+        "_ZOOMLEVELS"    : MINZOOM },
+    }
 
 ERROR_CODES = {
     "0": "No error.",
@@ -92,7 +91,6 @@ ERROR_CODES = {
 }
 
 TLE_GROUP_URL = {
-    
     "Space Stations": "stations",
     "Brightest Satellites": "visual",
     "Weather Satellites": "weather", 
@@ -101,17 +99,9 @@ TLE_GROUP_URL = {
     "Tracking and Data Relay Satellite System (TDRSS)" : "tdrss", 
     "CubeSats": "cubesat",
     "GPS Operational": "gps-ops", 
-    "Spire": "spire", 
-    "Planet": "planet", 
-    "Starlink": "starlink", 
-    "Swarm": "swarm", 
-    "OneWeb": "oneweb", 
     "Galileo": "galileo", 
     "Beidou": "beidou",
-    "GNSS": "gnss", 
-    "Iridium": "iridium", 
-    "NOAA": "noaa",
-    "Active": "active"
+    "GNSS": "gnss"
 }
 
 

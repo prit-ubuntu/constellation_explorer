@@ -21,10 +21,10 @@ st.markdown(
     - UI/UX python package: Check out [streamlit.io](https://streamlit.io).
     - SatCat visualizer pulls data from [Spacetrack](https://www.space-track.org/). See [API docs](https://www.space-track.org/documentation#/api).
 
-    ### Creators
+    ### Creator
     [Prit Chovatiya](https://www.linkedin.com/in/prit-chovatiya/) | Porfolio: [https://pritc.space/](https://pritc.space/)
 
-    Celestial Insights LLC  |  Contact Us: [pritchovatiya@celestialin.com](pritchovatiya@celestialin.com) 📥 📥 📥 
+    Contact Me: [pritc.space@gmail.com](pritc.space@gmail.com) 📥 📥 📥 
 
     All rights reserved.
     """

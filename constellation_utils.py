@@ -5,12 +5,11 @@ import numpy as np
 import constellation_configs as cc
 import pydeck as pdk
 import plotly.express as px
-from io import StringIO
 import random
+import requests
 
 # Names of all constellations in config file
 CONSTELLATIONS = list(cc.CONFIGS.keys())
-_URL = 'http://celestrak.com/NORAD/elements/'
 DT_FORMAT = '%b %d, %Y %H:%M:%S'
 
 DEBUG_CACHE = False
@@ -23,7 +22,9 @@ NUM_TRACK = 50
 KM_BIN_SIZE = 100
 INC_BIN_SIZE = 5
 MAX_POINTS = 3000
+STALE_EPOCH = 5 # days
 
+ts = load.timescale()
 
 class TransitEvent():
     '''
@@ -53,7 +54,6 @@ class TransitEvent():
         
         res = False
 
-        ts = load.timescale()
         ts_range = ts.linspace(self.rise, self.set, NUM_TRACK)
         difference = self.satrec - self.loc
 
@@ -163,17 +163,44 @@ class SatelliteMember(EarthSatellite):
             str_title = f"{str_title} {event}"
         return str_title
 
+@st.cache_resource(ttl=21600)
+def get_data_from_spacetrack(const_name, query_limit=10000):
+    
+    uriBase                = "https://www.space-track.org"
+    requestLogin           = "/ajaxauth/login"
+    requestCmdAction       = "/basicspacedata/query" 
+    requestURL = cc.CONFIGS[const_name]["_URL"] + f"/limit/{query_limit}"
+
+    with requests.Session() as session:
+        # need to log in first. note that we get a 200 to say the web site got the data, not that we are logged in
+        siteCred = {'identity': st.secrets.configuration.username, 'password': st.secrets.configuration.password}
+        resp = session.post(uriBase + requestLogin, data = siteCred)
+        if resp.status_code != 200:
+            st.error("Could not reach Spacetrack!")
+        # make get request from Spacetrack using the URL + auth
+        resp = session.get(uriBase + requestCmdAction + requestURL)  
+        if resp.status_code != 200:
+            st.error("API query failed from Spacetrack!")
+        else:
+            session.close()
+            # Convert text to bytearray
+            lines = resp.text.splitlines()
+            satellites = []
+            for index in range(0, len(lines), 3):
+                line_0, line_1, line_2 = lines[index:index+3]
+                satellite = EarthSatellite(line_1, line_2, line_0[1:], ts)
+                # print(satellite)
+                satellites.append(satellite)
+            return satellites
+
 class SatConstellation(object):
     '''
     Object that contains all relevant information and methods for constellation!
     '''
     def __init__(self, constellation):
-
-        
         if constellation in CONSTELLATIONS:
             self.constellation = constellation
             self.min_elevation = cc.CONFIGS[constellation]['_MINELEVATIONS']
-            self.max_altitude = cc.CONFIGS[constellation]['_MAXALTITUDES']
             self.radius_size = cc.CONFIGS[constellation]['_RADIUSLEVELS']
             self.map_zoom = cc.CONFIGS[constellation]['_ZOOMLEVELS']
         else:
@@ -190,6 +217,9 @@ class SatConstellation(object):
         self.num_passes = 0
         self.unique_passes = 0
         # download satellite data
+        self.notif_msgs = ""
+        self.query_sat_count = 0
+        self.drop_count = 0
         self.satellites = self.get_sats()
         # To be filled by generated sched
         self.schedule = pd.DataFrame()
@@ -213,54 +243,41 @@ class SatConstellation(object):
                 return sats
             else:
                 raise Exception("BAD_FILE_READ_ERROR")
-
-        def query_url():
-            # check that desired constellation is valid
-            if self.constellation.upper() not in CONSTELLATIONS:
-                raise ValueError('Could not find constellation!')
-            if DEBUG_CACHE:
-                print('CACHE CHECK: Queried new data!')
-            url = f'{_URL}{self.constellation.lower()}.txt'
-            try:
-                satellites = load.tle_file(url)
-                return satellites # EarthSatellite
-            except Exception as e:
-                st.error('Failed to get constellation data!')
-        
         member_satellites = []
-
         # only add satellite with valid propagation
         try:
             if self.constellation != "CUSTOM":
-                satellites = query_url()
+                satellites = get_data_from_spacetrack(self.constellation)
                 self.initialized = True 
             else:
-                # try:
                 satellites = load_file()
-                count = 1
-                if satellites:
-                    for sat in satellites:
-                        if not sat.name and sat.model.satnum < 99000 and sat.model.satnum > 87000:
-                            sat.name = f"ANALYST OBJECT-{str(sat.model.satnum)[-2:]}"
-                        elif not sat.name:
-                            sat.name = f"ANALYST OBJECT-{count}"
-                        count += 1
-                    self.initialized = True  # not support yet                     
-                # except Exception as e:
-                    # # print(f"Problem reading the file....: {e}")
-                    # print("Problem reading the file....:")
-            
+            # Saved queried number of satellites.
+            self.query_sat_count = len(satellites)
+            # Report successful query completion
+            self.notif_msgs = f"Processing {len(satellites)} satellites from Spacetrack.\n"
+            self.notif_msgs = self.notif_msgs + "-"*45
             # filter satellites for deorbitted sats just in case
+            log_msg = None
             for sat in satellites:
                 alt = (sat.model.am - 1) * sat.model.radiusearthkm
-                # will need to include this sanity check for adding satellite objects
-                if sat.model.error == 0 and alt > 0 and alt < 2*self.max_altitude:
-                    member_satellites.append(SatelliteMember(sat))
+                tle_age = abs(ts.now() - sat.epoch)
+                if tle_age > STALE_EPOCH:
+                    log_msg = f"❌ Dropping sat: {sat}\n Reason: stale TLE, tle age: {tle_age:.2f} days"
+                    self.drop_count += 1
+                elif sat.model.error != 0:
+                    log_msg = f"❌ Dropping sat: {sat}\n Reason: propagation error, code: {cc.ERROR_CODES[str(sat.model.error)]}"
+                    self.drop_count += 1
+                elif alt < 150:
+                    log_msg = f"❌ Dropping sat: {sat}\n Reason: unrealistic altitude: {alt:.2f} km"
+                    self.drop_count += 1           
                 else:
-                    print(f'Did not add sat: {sat} with error code: {cc.ERROR_CODES[str(sat.model.error)]}, dropping sat...')
-        except Exception as e:
-            st.error(f"Something went horribly wrong, sorry.{e}")
+                    log_msg = f"✅ Adding sat: {sat}\n Passed: QA checks - tle age: {tle_age:.2f} days, altitude: {alt:.0f} km"
+                    member_satellites.append(SatelliteMember(sat))
+                self.notif_msgs = f"{self.notif_msgs}\n" + log_msg + f"\n" + "-"*25 
+            self.notif_msgs = f"{self.notif_msgs}" + "-"*25 + f"\n🛠️ Processed {len(satellites)} sats\n" + f"❌ Dropped {self.drop_count} sats\n" + f"✅ Saved {len(satellites) - self.drop_count} sats\n" 
 
+        except Exception as e:
+            st.error(f"Something went horribly wrong, sorry. {e}")
         return member_satellites
 
     def generatePasses(self, usrLocObject):
@@ -286,7 +303,6 @@ class SatConstellation(object):
 
         position = usrLocObject.selected_position
         dateRange = usrLocObject.date_range
-        ts = load.timescale()
         self.cityLatLon = wgs84.latlon(position[0], position[1])
         self.time = (ts.from_datetime(dateRange[0]), ts.from_datetime(dateRange[1]))
         self.tz = dateRange[0].tzinfo
@@ -385,7 +401,6 @@ class SatConstellation(object):
                     st.info(gTrack_info_str, icon="ℹ️")
 
         def display_transits(types):
-            
             for type in types:        
                 if type == "TABLE":
                     ele_info_str = f'''Showing transits over  {self.min_elevation}° of elevation above 
@@ -425,7 +440,7 @@ class SatConstellation(object):
 
         display_results_summary()
 
-        tab1, tab2 = st.tabs(["Transits", "Constellation Statistics"])
+        tab1, tab2, tab3 = st.tabs(["Transits", "Constellation Statistics", "Logs"])
 
         with tab1:
             if self.num_passes > 0:
@@ -437,6 +452,7 @@ class SatConstellation(object):
 
         with tab2:
             # gets a pandas df for stats to be plotted
+            st.caption(f"Showing results for {len(self.satellites)} satellites in {self.constellation} constellation that are still in orbit.")
             self.getDataPDtoPlot()
             launchDist = self.getLaunchDist()
             st.plotly_chart(launchDist, theme="streamlit")
@@ -444,7 +460,12 @@ class SatConstellation(object):
             st.plotly_chart(smaHist, theme="streamlit")
             incDist = self.getIncDist()
             st.plotly_chart(incDist, theme="streamlit")
-            st.caption(f"Showing results for {len(self.satellites)} satellites in {self.constellation} constellation.")
+        
+        with tab3:
+            summary_txt = f"🛠️ Processed {self.query_sat_count} sats\n" + f"❌ Dropped {self.drop_count} sats\n" + f"✅ Saved {self.query_sat_count - self.drop_count} sats" 
+            st.text_area("QA Summary", summary_txt, disabled=True)
+            st.text_area("Extended Logs", self.notif_msgs, disabled=True)
+
         return None
 
     def getTransits(self, purpose):
@@ -526,13 +547,12 @@ class SatConstellation(object):
         for sat in self.satellites:
             try:
                 alt = (sat.satrec_object.model.am - 1) * sat.satrec_object.model.radiusearthkm
-                if alt > 0 and alt < 2*self.max_altitude:
-                    a_mean_list.append(alt) # kms
-                    name_list.append(sat.satrec_object.name)
-                    launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
-                    inc = sat.satrec_object.model.inclo # radians
-                    inc_list.append(inc)
-                    norad_list.append(sat.satrec_object.model.satnum)
+                a_mean_list.append(alt) # kms
+                name_list.append(sat.satrec_object.name)
+                launch_year.append(f"'{sat.satrec_object.model.intldesg[0:2]}")
+                inc = sat.satrec_object.model.inclo # radians
+                inc_list.append(inc)
+                norad_list.append(sat.satrec_object.model.satnum)
             except:
                 print(f'Found a prop error: {sat.satrec_object.model.error}')
                 print(f'Could not add data for {sat.satrec_object.name}')

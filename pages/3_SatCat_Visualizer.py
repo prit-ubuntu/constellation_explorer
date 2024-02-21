@@ -12,7 +12,7 @@ distributions for various satellite sets. Group them by launch year,
 orbital status and classification and see insights come to life.
 ''')
 
-@st.cache(ttl=86400)
+@st.cache_data(ttl=21600)
 def get_data_from_spacetrack(constSelect, query_limit):
     
     def getSiteCred():

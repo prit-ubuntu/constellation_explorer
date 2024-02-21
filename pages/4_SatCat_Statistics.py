@@ -12,8 +12,8 @@ There are three visualizations for this data: 1. Launch + Decay Timelines | 2. O
 | 3. Composite sunburst chart that shows hierarchical classifications of objects by country, active/decay status and object type. 
 ''')
 
-@st.cache(ttl=86400, show_spinner="Fetching data from Spacetrack API...")
-def get_data_from_spacetrack(year_limit=(2000, 2023)):
+@st.cache_data(ttl=21600, show_spinner="Fetching data from Spacetrack API...")
+def get_data_from_spacetrack(year_limit=(2000, 2024)):
     
     def getSiteCred():
         # use file in .streamlit/secrets.toml when running locally / else deployed streamlit app needs those secrets defined
