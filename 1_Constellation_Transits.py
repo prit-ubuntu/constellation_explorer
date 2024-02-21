@@ -40,7 +40,7 @@ def getCachedConstellation(constellationName):
     return constellation
 constellation = getCachedConstellation(constellationChoice)
 if constellation.initialized:
-    st.sidebar.success(f"Queried {len(constellation.satellites)} {constellation.constellation} satellites.", icon="✅")
+    st.sidebar.success(f"Queried {constellation.query_sat_count} {constellation.constellation} satellites.", icon="✅")
 
 # 2. Get Location 
 usrLoc = loc_utils.UserLocation()
