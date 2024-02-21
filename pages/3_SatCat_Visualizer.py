@@ -49,7 +49,7 @@ def get_data_from_spacetrack(constSelect, query_limit):
 # Get user input:
 st.sidebar.write('Begin here 👇')
 constSelect = st.sidebar.selectbox('Select a constellation', tuple(requestDict.keys()))
-query_limit = st.sidebar.slider("Limit number of results upto:", min_value=1000, max_value=21000, value=5000, step=4000)
+query_limit = st.sidebar.slider("Limit number of results upto:", min_value=1000, max_value=25000, value=10000, step=5000)
 
 # Query data from Spacetrack
 with st.spinner("Retrieving data from Spacetrack..."):
