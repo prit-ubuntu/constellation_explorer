@@ -91,6 +91,7 @@ ERROR_CODES = {
 }
 
 TLE_GROUP_URL = {
+    "Last 30 days' launches": "last-30-days",
     "Space Stations": "stations",
     "Brightest Satellites": "visual",
     "Weather Satellites": "weather", 
