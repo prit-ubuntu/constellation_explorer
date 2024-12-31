@@ -10,6 +10,17 @@ import pandas as pd
 import numpy as np
 
 DT_FORMAT = '%b %d, %Y %H:%M:%S'
+ts = load.timescale()
+
+sample_tle1 = '''ISS (ZARYA)
+1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927
+2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537
+'''
+
+sample_tle2 = '''ISS (NAUKA)             
+1 49044U 21066A   24365.84629716  .00026894  00000+0  46918-3 0  9998
+2 49044  51.6381  60.9973 0006035  24.6561 335.4715 15.50491105194169
+'''
 
 def compare_sats(sat1df, sat2df):
 
@@ -123,42 +134,64 @@ def query_sats(sat_group):
     url = f'{_URL}{cc.TLE_GROUP_URL[sat_group]}.txt'
     return load.tle_file(url)
 
-def get_satellites():
-    satellite_group_type = st.sidebar.selectbox('Select a satellite group:', tuple(cc.TLE_GROUP_URL))
-    satellites = query_sats(satellite_group_type)
-    return satellites
+def get_sat_from_tle(tle_string):
+    lines = tle_string.splitlines() # expected 3LE
+    satellite = EarthSatellite(lines[1], lines[2], lines[0], ts)
+    return satellite
 
-satellites = get_satellites()
-st.sidebar.success(f"Loaded {len(satellites)} satellites.",icon="✅")
+def get_satellites(satellite_group_type):
+    if satellite_group_type != "Custom":
+        satellites = query_sats(satellite_group_type)
+        st.sidebar.success(f"Loaded {len(satellites)} satellites.",icon="✅")
+        return satellites
+    else:
+        try:
+            tle1 = st.sidebar.text_area(f"SAT A TLE: ", value=sample_tle1)
+            tle2 = st.sidebar.text_area(f"SAT B TLE: ", value=sample_tle2)
+            if tle1 and tle2:
+                sat1 = get_sat_from_tle(tle1)
+                sat2 = get_sat_from_tle(tle2)
+                satellites = [sat1, sat2]
+                st.sidebar.success(f"Loaded {len(satellites)} satellites.",icon="✅")
+                return satellites
+            else:
+                st.sidebar.error("Please enter valid TLEs for both satellites")
+        except:
+            st.sidebar.error("Please enter valid TLEs for both satellites.")
 
-# 2. Get Date Range
-start_time = dt.utcnow().replace(tzinfo=timezone('UTC'))
-dateOptStart = dt(start_time.year, start_time.month, start_time.day, start_time.hour, 0, 0, 0, timezone('UTC'))
-dateChoice = st.sidebar.slider(
-    f"Select time range (UTC):",
-    min_value = dateOptStart,
-    max_value = dateOptStart + timedelta(days=2),
-    value=(dateOptStart, dateOptStart + timedelta(hours=18)),
-    step = (timedelta(minutes=120)),
-    format = "MM/DD HH:mm")
+satellite_group_type = st.sidebar.selectbox('Select a satellite group:', tuple(cc.TLE_GROUP_URL))
+satellites = get_satellites(satellite_group_type)
 
-# 3. Select satellite of interest
-by_name = {f"{sat.model.satnum:<6} | {sat.name}": sat for sat in satellites}
-col1, col2 = st.columns([1,1])
-with col1:
-    option1 = st.selectbox('Select primary satellite:', tuple(by_name), index=3)
-    satObject1 = st_utils.Satellite(by_name[str(option1)])
-    satObject1.results_for_rpo(dateChoice)
-    st1df = satObject1.ephemeris.get_df_with_fields()
-    st.caption(f'''{satObject1.tle_epoch_str}  
-                {satObject1.tle_age_str}''')
-with col2:
-    option2 = st.selectbox('Select secondary satellite:', tuple(by_name))
-    satObject2 = st_utils.Satellite(by_name[str(option2)])
-    satObject2.results_for_rpo(dateChoice)
-    st2df = satObject2.ephemeris.get_df_with_fields()
-    st.caption(f'''{satObject2.tle_epoch_str}  
-                {satObject2.tle_age_str}''')
+if satellites:
+    # 2. Get Date Range
+    start_time = dt.utcnow().replace(tzinfo=timezone('UTC'))
+    dateOptStart = dt(start_time.year, start_time.month, start_time.day, start_time.hour, 0, 0, 0, timezone('UTC'))
+    dateChoice = st.sidebar.slider(
+        f"Select time range (UTC):",
+        min_value = dateOptStart,
+        max_value = dateOptStart + timedelta(days=2),
+        value=(dateOptStart, dateOptStart + timedelta(hours=18)),
+        step = (timedelta(minutes=120)),
+        format = "MM/DD HH:mm")
 
-# # show results
-compare_sats(st1df, st2df)
+    # 3. Select satellite of interest
+    by_name = {f"{sat.model.satnum:<6} | {sat.name}": sat for sat in satellites}
+    
+    col1, col2 = st.columns([1,1])
+    with col1:
+        option1 = st.selectbox('Select primary satellite:', tuple(by_name))
+        satObject1 = st_utils.Satellite(by_name[str(option1)])
+        satObject1.results_for_rpo(dateChoice)
+        st1df = satObject1.ephemeris.get_df_with_fields()
+        st.caption(f'''{satObject1.tle_epoch_str}  
+                    {satObject1.tle_age_str}''')
+    with col2:
+        option2 = st.selectbox('Select secondary satellite:', tuple(by_name), index=1)
+        satObject2 = st_utils.Satellite(by_name[str(option2)])
+        satObject2.results_for_rpo(dateChoice)
+        st2df = satObject2.ephemeris.get_df_with_fields()
+        st.caption(f'''{satObject2.tle_epoch_str}  
+                    {satObject2.tle_age_str}''')
+
+    # # show results
+    compare_sats(st1df, st2df)
