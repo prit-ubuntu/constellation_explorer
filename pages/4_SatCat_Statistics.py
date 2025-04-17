@@ -13,7 +13,7 @@ There are three visualizations for this data: 1. Launch + Decay Timelines | 2. O
 ''')
 
 @st.cache_data(ttl=21600, show_spinner="Fetching data from Spacetrack API...")
-def get_data_from_spacetrack(year_limit=(2000, 2024)):
+def get_data_from_spacetrack(year_limit=(2000, 2025)):
     
     def getSiteCred():
         # use file in .streamlit/secrets.toml when running locally / else deployed streamlit app needs those secrets defined
@@ -133,7 +133,7 @@ sunburst_groupings = {
 # ------------------------- Sidebar panel
 # Get user input:
 st.sidebar.write('Begin here 👇')
-year_limit = st.sidebar.slider("Select time range:", min_value=1957, max_value=2023, value=tuple([2010,2023]), step=1)
+year_limit = st.sidebar.slider("Select time range:", min_value=1957, max_value=2025, value=tuple([2010,2025]), step=1)
 groupChoice = st.sidebar.multiselect('Groupings by:', singular_groupings.keys(), list(singular_groupings.keys())[0:3])
 hierarchyChoice = st.sidebar.multiselect('Hierachical groupings by:', sunburst_groupings.keys(), list(sunburst_groupings.keys())[0:3])
 
